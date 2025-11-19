@@ -20,7 +20,9 @@ import java.util.ArrayDeque;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.UUID;
 
 /**
@@ -115,7 +117,9 @@ public final class TreeChopper {
 		}
 		int requiredChops = computeRequiredChops(originals.size());
 		msgOrigin(originals.size(), requiredChops);
-		return new Session(originals, requiredChops, findBase(originals));
+		BlockPos base = findBase(originals);
+		List<BlockPos> stripOrder = orderLogs(originals, base);
+		return new Session(originals, requiredChops, base, stripOrder);
 	}
 
 	private static int computeRequiredChops(int logCount) {
@@ -170,6 +174,19 @@ public final class TreeChopper {
 			.orElse(null);
 	}
 
+	private static List<BlockPos> orderLogs(Map<BlockPos, BlockState> originals, BlockPos base) {
+		Comparator<BlockPos> byPos = (a, b) -> {
+			int cmp = Integer.compare(a.getY(), b.getY());
+			if (cmp != 0) return cmp;
+			cmp = Integer.compare(a.getX(), b.getX());
+			if (cmp != 0) return cmp;
+			return Integer.compare(a.getZ(), b.getZ());
+		};
+		return originals.keySet().stream()
+			.sorted(byPos)
+			.collect(Collectors.toList());
+	}
+
 	private static void chopRemaining(Level level, Player player, Session session, BlockPos alreadyBroken) {
 		for (Map.Entry<BlockPos, BlockState> entry : session.originals.entrySet()) {
 			BlockPos pos = entry.getKey();
@@ -195,12 +212,14 @@ public final class TreeChopper {
 		private final Map<BlockPos, BlockState> originals;
 		private final int requiredChops;
 		private final BlockPos base;
+		private final List<BlockPos> stripOrder;
 		private int hits = 0;
 
-		Session(Map<BlockPos, BlockState> originals, int requiredChops, BlockPos base) {
+		Session(Map<BlockPos, BlockState> originals, int requiredChops, BlockPos base, List<BlockPos> stripOrder) {
 			this.originals = originals;
 			this.requiredChops = requiredChops;
 			this.base = base;
+			this.stripOrder = stripOrder;
 		}
 
 		boolean contains(BlockPos pos) {
@@ -226,30 +245,45 @@ public final class TreeChopper {
 		BlockPos getBase() {
 			return base;
 		}
+
+		int getHits() {
+			return hits;
+		}
+
+		BlockPos getStripTargetForCurrentHit() {
+			if (stripOrder.isEmpty()) {
+				return null;
+			}
+			int idx = Math.min(Math.max(hits - 1, 0), stripOrder.size() - 1);
+			return stripOrder.get(idx);
+		}
 	}
 
 	private static void applyStripVisual(Level level, BlockPos pos, BlockState currentState, Session session) {
-		BlockPos rootPos = session.getBase();
-		if (rootPos == null) {
-			rootPos = pos;
+		BlockPos targetPos = session.getStripTargetForCurrentHit();
+		if (targetPos == null) {
+			targetPos = session.getBase();
+		}
+		if (targetPos == null) {
+			targetPos = pos;
 		}
 
-		// Prefer the original state for the root so we preserve axis
-		BlockState rootState = session.getOriginal(rootPos);
-		if (rootState == null) {
-			rootState = level.getBlockState(rootPos);
+		// Prefer the original state for the target so we preserve axis
+		BlockState targetState = session.getOriginal(targetPos);
+		if (targetState == null) {
+			targetState = level.getBlockState(targetPos);
 		}
 
-		Block stripped = AxeItemAccessor.getStrippables().get(rootState.getBlock());
+		Block stripped = AxeItemAccessor.getStrippables().get(targetState.getBlock());
 		if (stripped == null) {
 			return;
 		}
 		BlockState newState = stripped.defaultBlockState();
-		if (rootState.hasProperty(RotatedPillarBlock.AXIS) && newState.hasProperty(RotatedPillarBlock.AXIS)) {
-			newState = newState.setValue(RotatedPillarBlock.AXIS, rootState.getValue(RotatedPillarBlock.AXIS));
+		if (targetState.hasProperty(RotatedPillarBlock.AXIS) && newState.hasProperty(RotatedPillarBlock.AXIS)) {
+			newState = newState.setValue(RotatedPillarBlock.AXIS, targetState.getValue(RotatedPillarBlock.AXIS));
 		}
-		if (!newState.equals(rootState)) {
-			level.setBlock(rootPos, newState, 11);
+		if (!newState.equals(targetState)) {
+			level.setBlock(targetPos, newState, 11);
 		}
 	}
 }
