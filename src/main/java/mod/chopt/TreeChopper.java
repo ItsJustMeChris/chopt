@@ -100,8 +100,21 @@ public final class TreeChopper {
 		if (logs.isEmpty()) {
 			return null;
 		}
-		int requiredChops = Math.max(1, (int) Math.ceil(logs.size() / 5.0));
+		int requiredChops = computeRequiredChops(logs.size());
+		msgOrigin(logs.size(), requiredChops);
 		return new Session(logs, requiredChops);
+	}
+
+	private static int computeRequiredChops(int logCount) {
+		double value = 0.12 * logCount + 2.0 * Math.log1p(logCount);
+		int chops = (int) Math.ceil(value);
+		chops = Math.max(1, Math.min(logCount, chops));
+		return Math.min(chops, 32); // hard cap for sanity
+	}
+
+	private static void msgOrigin(int logs, int chops) {
+		// purely for debugging; no player context available here
+		Chopt.LOGGER.info("[chopt] scan logs={} chops={}", logs, chops);
 	}
 
 	private static Set<BlockPos> scanLogs(Level level, BlockPos origin) {
