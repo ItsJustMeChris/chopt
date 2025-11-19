@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.ItemTags;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -78,11 +79,21 @@ public final class TreeChopper {
 		}
 
 		session.recordAttempt();
+		applyDurabilityLoss(player, held, 1); // pay a swing immediately so partial attempts still cost durability
+		if (held.isEmpty()) {
+			dropSession(player, "axe broke");
+			return true;
+		}
 		int remaining = Math.max(0, session.logsSize() - session.hits);
 		if (!session.isComplete()) {
 			msg(player, "hit " + session.hits + "/" + session.requiredChops + " (logs left " + remaining + ")");
 			applyStripVisual(level, pos, state, session);
 			return false; // cancel breaking to allow repeated hits on same log
+		}
+
+		if (held.isEmpty()) {
+			dropSession(player, "axe broke; finish with another tool");
+			return true;
 		}
 
 		// Final chop: drop unstripped log and fell rest manually to avoid stripped drops
@@ -95,12 +106,17 @@ public final class TreeChopper {
 
 		PROCESSING.set(true);
 		try {
-			chopRemaining(level, player, session, pos);
+			int felled = chopRemainingWithDurability(level, player, session, pos, held);
+			int remainingLogs = Math.max(0, session.logsSize() - 1 - felled); // exclude the already broken log
+			if (remainingLogs > 0) {
+				msg(player, "axe broke; " + remainingLogs + " logs remain");
+			} else {
+				msg(player, "quota reached, timber!");
+			}
 		} finally {
 			PROCESSING.set(false);
 		}
 		SESSIONS.remove(player.getUUID());
-		msg(player, "quota reached, timber!");
 		return false; // we've handled the break and drops ourselves
 	}
 
@@ -195,18 +211,41 @@ public final class TreeChopper {
 			.collect(Collectors.toList());
 	}
 
-	private static void chopRemaining(Level level, Player player, Session session, BlockPos alreadyBroken) {
+	private static int chopRemainingWithDurability(Level level, Player player, Session session, BlockPos alreadyBroken, ItemStack tool) {
+		int felled = 0;
+
 		for (Map.Entry<BlockPos, BlockState> entry : session.originals.entrySet()) {
 			BlockPos pos = entry.getKey();
 			if (pos.equals(alreadyBroken)) continue;
+
+			if (!player.isCreative()) {
+				if (tool.isEmpty()) {
+					break;
+				}
+				applyDurabilityLoss(player, tool, 1);
+				if (tool.isEmpty()) {
+					break;
+				}
+			}
+
 			BlockState original = entry.getValue();
 			Block.dropResources(original, level, pos, level.getBlockEntity(pos), player, player.getMainHandItem());
 			level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+			felled++;
 		}
+
+		return felled;
 	}
 
 	private static void msg(Player player, String text) {
 		// chat logging disabled for release
+	}
+
+	private static void applyDurabilityLoss(Player player, ItemStack tool, int amount) {
+		if (amount <= 0) return;
+		if (player.isCreative()) return;
+		if (tool.isEmpty()) return;
+		tool.hurtAndBreak(amount, player, EquipmentSlot.MAINHAND);
 	}
 
 	private static void dropSession(Player player, String reason) {
