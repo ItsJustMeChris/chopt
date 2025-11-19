@@ -52,6 +52,11 @@ public final class TreeChopper {
 			return true;
 		}
 
+		if (player.isShiftKeyDown()) {
+			dropSession(player, "ignored: sneaking");
+			return true; // allow vanilla breaking while crouching
+		}
+
 		if (!state.is(BlockTags.LOGS)) {
 			dropSession(player, "reset: not a log");
 			return true;
