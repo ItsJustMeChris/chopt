@@ -3,8 +3,6 @@ package mod.chopt;
 import mod.chopt.mixin.AxeItemAccessor;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.player.Player;
@@ -141,8 +139,7 @@ public final class TreeChopper {
 	}
 
 	private static void msgOrigin(int logs, int chops) {
-		// purely for debugging; no player context available here
-		Chopt.LOGGER.info("[chopt] scan logs={} chops={}", logs, chops);
+		// logging disabled for release
 	}
 
 	private static Map<BlockPos, BlockState> scanLogs(Level level, BlockPos origin) {
@@ -209,9 +206,7 @@ public final class TreeChopper {
 	}
 
 	private static void msg(Player player, String text) {
-		if (player instanceof ServerPlayer serverPlayer) {
-			serverPlayer.sendSystemMessage(Component.literal("[chopt] " + text));
-		}
+		// chat logging disabled for release
 	}
 
 	private static void dropSession(Player player, String reason) {
