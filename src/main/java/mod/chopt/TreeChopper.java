@@ -3,7 +3,6 @@ package mod.chopt;
 import mod.chopt.mixin.AxeItemAccessor;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
@@ -17,6 +16,7 @@ import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
@@ -30,6 +30,7 @@ import java.util.UUID;
  */
 public final class TreeChopper {
 	private static final int MAX_LOGS = 256;
+	private static final BlockPos[] NEIGHBOR_OFFSETS = buildNeighborOffsets();
 	private static final Map<UUID, Session> SESSIONS = new HashMap<>();
 	private static final ThreadLocal<Boolean> PROCESSING = ThreadLocal.withInitial(() -> false);
 
@@ -146,18 +147,18 @@ public final class TreeChopper {
 			}
 
 			BlockState state = level.getBlockState(current);
-			if (!state.is(BlockTags.LOGS)) {
-				continue;
-			}
-			originals.put(current, state);
+				if (!state.is(BlockTags.LOGS)) {
+					continue;
+				}
+				originals.put(current, state);
 
-			for (Direction dir : Direction.values()) {
-				BlockPos next = current.relative(dir);
-				if (!originals.containsKey(next) && level.getBlockState(next).is(BlockTags.LOGS)) {
-					queue.add(next);
+				for (BlockPos offset : NEIGHBOR_OFFSETS) {
+					BlockPos next = current.offset(offset);
+					if (!originals.containsKey(next) && level.getBlockState(next).is(BlockTags.LOGS)) {
+						queue.add(next);
+					}
 				}
 			}
-		}
 
 		return originals;
 	}
@@ -278,12 +279,29 @@ public final class TreeChopper {
 		if (stripped == null) {
 			return;
 		}
-		BlockState newState = stripped.defaultBlockState();
-		if (targetState.hasProperty(RotatedPillarBlock.AXIS) && newState.hasProperty(RotatedPillarBlock.AXIS)) {
-			newState = newState.setValue(RotatedPillarBlock.AXIS, targetState.getValue(RotatedPillarBlock.AXIS));
+			BlockState newState = stripped.defaultBlockState();
+			if (targetState.hasProperty(RotatedPillarBlock.AXIS) && newState.hasProperty(RotatedPillarBlock.AXIS)) {
+				newState = newState.setValue(RotatedPillarBlock.AXIS, targetState.getValue(RotatedPillarBlock.AXIS));
+			}
+			if (!newState.equals(targetState)) {
+				level.setBlock(targetPos, newState, 11);
+			}
 		}
-		if (!newState.equals(targetState)) {
-			level.setBlock(targetPos, newState, 11);
+
+	/**
+	 * Build a 26-neighbor cube around origin (excludes 0,0,0) so we catch diagonally
+	 * touching logs (e.g., jungle branches) instead of only face-adjacent ones.
+	 */
+	private static BlockPos[] buildNeighborOffsets() {
+		List<BlockPos> offsets = new ArrayList<>(26);
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dy = -1; dy <= 1; dy++) {
+				for (int dz = -1; dz <= 1; dz++) {
+					if (dx == 0 && dy == 0 && dz == 0) continue;
+					offsets.add(new BlockPos(dx, dy, dz));
+				}
+			}
 		}
+		return offsets.toArray(BlockPos[]::new);
 	}
 }
