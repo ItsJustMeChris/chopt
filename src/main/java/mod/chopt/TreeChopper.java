@@ -1,6 +1,7 @@
 package mod.chopt;
 
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import mod.chopt.mixin.AxeItemAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -10,14 +11,15 @@ import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -63,29 +65,25 @@ public final class TreeChopper {
 				return true;
 			}
 			SESSIONS.put(player.getUUID(), session);
-			msg(player, "tree size " + session.logs.size() + ", chops needed " + session.requiredChops);
+			msg(player, "tree size " + session.logsSize() + ", chops needed " + session.requiredChops);
 		}
 
-			session.recordAttempt();
-			int remaining = Math.max(0, session.logs.size() - session.hits);
-			if (!session.isComplete()) {
-				msg(player, "hit " + session.hits + "/" + session.requiredChops + " (logs left " + remaining + ")");
-				return false; // cancel breaking to allow repeated hits on same log
-			}
-
-		session.markReadyToFell();
-		msg(player, "quota reached, breaking now");
-		return true; // allow this break to proceed
-	}
-
-	private static void afterBreak(Level level, Player player, BlockPos pos, BlockState state, /* nullable */ Object blockEntity) {
-		if (level.isClientSide()) {
-			return;
+		session.recordAttempt();
+		int remaining = Math.max(0, session.logsSize() - session.hits);
+		if (!session.isComplete()) {
+			msg(player, "hit " + session.hits + "/" + session.requiredChops + " (logs left " + remaining + ")");
+			applyStripVisual(level, pos, state);
+			return false; // cancel breaking to allow repeated hits on same log
 		}
-		Session session = SESSIONS.get(player.getUUID());
-		if (session == null || !session.readyToFell) {
-			return;
+
+		// Final chop: drop unstripped log and fell rest manually to avoid stripped drops
+		BlockState original = session.getOriginal(pos);
+		if (original != null) {
+			// Use the stored original state so drops aren't stripped
+			Block.dropResources(original, level, pos, level.getBlockEntity(pos), player, player.getMainHandItem());
 		}
+		level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+
 		PROCESSING.set(true);
 		try {
 			chopRemaining(level, player, session, pos);
@@ -93,16 +91,30 @@ public final class TreeChopper {
 			PROCESSING.set(false);
 		}
 		SESSIONS.remove(player.getUUID());
+		msg(player, "quota reached, timber!");
+		return false; // we've handled the break and drops ourselves
+	}
+
+	private static void afterBreak(Level level, Player player, BlockPos pos, BlockState state, /* nullable */ Object blockEntity) {
+		if (level.isClientSide()) {
+			return;
+		}
+		Session session = SESSIONS.get(player.getUUID());
+		if (session == null) {
+			return;
+		}
+		// No-op now: final felling handled synchronously in beforeBreak to control drops
+		SESSIONS.remove(player.getUUID());
 	}
 
 	private static Session buildSession(Level level, BlockPos origin) {
-		Set<BlockPos> logs = scanLogs(level, origin);
-		if (logs.isEmpty()) {
+		Map<BlockPos, BlockState> originals = scanLogs(level, origin);
+		if (originals.isEmpty()) {
 			return null;
 		}
-		int requiredChops = computeRequiredChops(logs.size());
-		msgOrigin(logs.size(), requiredChops);
-		return new Session(logs, requiredChops);
+		int requiredChops = computeRequiredChops(originals.size());
+		msgOrigin(originals.size(), requiredChops);
+		return new Session(originals, requiredChops);
 	}
 
 	private static int computeRequiredChops(int logCount) {
@@ -117,14 +129,14 @@ public final class TreeChopper {
 		Chopt.LOGGER.info("[chopt] scan logs={} chops={}", logs, chops);
 	}
 
-	private static Set<BlockPos> scanLogs(Level level, BlockPos origin) {
-		Set<BlockPos> visited = new HashSet<>();
+	private static Map<BlockPos, BlockState> scanLogs(Level level, BlockPos origin) {
+		Map<BlockPos, BlockState> originals = new HashMap<>();
 		Deque<BlockPos> queue = new ArrayDeque<>();
 		queue.add(origin);
 
-		while (!queue.isEmpty() && visited.size() < MAX_LOGS) {
+		while (!queue.isEmpty() && originals.size() < MAX_LOGS) {
 			BlockPos current = queue.removeFirst();
-			if (!visited.add(current)) {
+			if (originals.containsKey(current)) {
 				continue;
 			}
 
@@ -132,25 +144,26 @@ public final class TreeChopper {
 			if (!state.is(BlockTags.LOGS)) {
 				continue;
 			}
+			originals.put(current, state);
 
 			for (Direction dir : Direction.values()) {
 				BlockPos next = current.relative(dir);
-				if (!visited.contains(next) && level.getBlockState(next).is(BlockTags.LOGS)) {
+				if (!originals.containsKey(next) && level.getBlockState(next).is(BlockTags.LOGS)) {
 					queue.add(next);
 				}
 			}
 		}
 
-		return visited;
+		return originals;
 	}
 
 	private static void chopRemaining(Level level, Player player, Session session, BlockPos alreadyBroken) {
-		for (BlockPos pos : session.logs) {
+		for (Map.Entry<BlockPos, BlockState> entry : session.originals.entrySet()) {
+			BlockPos pos = entry.getKey();
 			if (pos.equals(alreadyBroken)) continue;
-			BlockState state = level.getBlockState(pos);
-			if (state.is(BlockTags.LOGS)) {
-				level.destroyBlock(pos, true, player);
-			}
+			BlockState original = entry.getValue();
+			Block.dropResources(original, level, pos, level.getBlockEntity(pos), player, player.getMainHandItem());
+			level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
 		}
 	}
 
@@ -166,30 +179,47 @@ public final class TreeChopper {
 	}
 
 	private static final class Session {
-		private final Set<BlockPos> logs;
+		private final Map<BlockPos, BlockState> originals;
 		private final int requiredChops;
 		private int hits = 0;
-		private boolean readyToFell = false;
 
-		Session(Set<BlockPos> logs, int requiredChops) {
-			this.logs = logs;
+		Session(Map<BlockPos, BlockState> originals, int requiredChops) {
+			this.originals = originals;
 			this.requiredChops = requiredChops;
 		}
 
 		boolean contains(BlockPos pos) {
-			return logs.contains(pos);
+			return originals.containsKey(pos);
 		}
 
 		void recordAttempt() {
 			hits++;
 		}
 
+		int logsSize() {
+			return originals.size();
+		}
+
 		boolean isComplete() {
 			return hits >= requiredChops;
 		}
 
-		void markReadyToFell() {
-			readyToFell = true;
+		BlockState getOriginal(BlockPos pos) {
+			return originals.get(pos);
+		}
+	}
+
+	private static void applyStripVisual(Level level, BlockPos pos, BlockState currentState) {
+		Block stripped = AxeItemAccessor.getStrippables().get(currentState.getBlock());
+		if (stripped == null) {
+			return;
+		}
+		BlockState newState = stripped.defaultBlockState();
+		if (currentState.hasProperty(RotatedPillarBlock.AXIS) && newState.hasProperty(RotatedPillarBlock.AXIS)) {
+			newState = newState.setValue(RotatedPillarBlock.AXIS, currentState.getValue(RotatedPillarBlock.AXIS));
+		}
+		if (!newState.equals(currentState)) {
+			level.setBlock(pos, newState, 11);
 		}
 	}
 }

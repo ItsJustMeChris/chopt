@@ -3,6 +3,7 @@
 	"package": "mod.chopt.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
+		"AxeItemAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1
