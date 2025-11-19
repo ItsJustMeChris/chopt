@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayDeque;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
@@ -114,7 +115,7 @@ public final class TreeChopper {
 		}
 		int requiredChops = computeRequiredChops(originals.size());
 		msgOrigin(originals.size(), requiredChops);
-		return new Session(originals, requiredChops);
+		return new Session(originals, requiredChops, findBase(originals));
 	}
 
 	private static int computeRequiredChops(int logCount) {
@@ -157,6 +158,18 @@ public final class TreeChopper {
 		return originals;
 	}
 
+	private static BlockPos findBase(Map<BlockPos, BlockState> originals) {
+		return originals.keySet().stream()
+			.min((a, b) -> {
+				int cmp = Integer.compare(a.getY(), b.getY());
+				if (cmp != 0) return cmp;
+				cmp = Integer.compare(a.getX(), b.getX());
+				if (cmp != 0) return cmp;
+				return Integer.compare(a.getZ(), b.getZ());
+			})
+			.orElse(null);
+	}
+
 	private static void chopRemaining(Level level, Player player, Session session, BlockPos alreadyBroken) {
 		for (Map.Entry<BlockPos, BlockState> entry : session.originals.entrySet()) {
 			BlockPos pos = entry.getKey();
@@ -181,11 +194,13 @@ public final class TreeChopper {
 	private static final class Session {
 		private final Map<BlockPos, BlockState> originals;
 		private final int requiredChops;
+		private final BlockPos base;
 		private int hits = 0;
 
-		Session(Map<BlockPos, BlockState> originals, int requiredChops) {
+		Session(Map<BlockPos, BlockState> originals, int requiredChops, BlockPos base) {
 			this.originals = originals;
 			this.requiredChops = requiredChops;
+			this.base = base;
 		}
 
 		boolean contains(BlockPos pos) {
@@ -207,19 +222,34 @@ public final class TreeChopper {
 		BlockState getOriginal(BlockPos pos) {
 			return originals.get(pos);
 		}
+
+		BlockPos getBase() {
+			return base;
+		}
 	}
 
 	private static void applyStripVisual(Level level, BlockPos pos, BlockState currentState, Session session) {
-		Block stripped = AxeItemAccessor.getStrippables().get(currentState.getBlock());
+		BlockPos rootPos = session.getBase();
+		if (rootPos == null) {
+			rootPos = pos;
+		}
+
+		// Prefer the original state for the root so we preserve axis
+		BlockState rootState = session.getOriginal(rootPos);
+		if (rootState == null) {
+			rootState = level.getBlockState(rootPos);
+		}
+
+		Block stripped = AxeItemAccessor.getStrippables().get(rootState.getBlock());
 		if (stripped == null) {
 			return;
 		}
 		BlockState newState = stripped.defaultBlockState();
-		if (currentState.hasProperty(RotatedPillarBlock.AXIS) && newState.hasProperty(RotatedPillarBlock.AXIS)) {
-			newState = newState.setValue(RotatedPillarBlock.AXIS, currentState.getValue(RotatedPillarBlock.AXIS));
+		if (rootState.hasProperty(RotatedPillarBlock.AXIS) && newState.hasProperty(RotatedPillarBlock.AXIS)) {
+			newState = newState.setValue(RotatedPillarBlock.AXIS, rootState.getValue(RotatedPillarBlock.AXIS));
 		}
-		if (!newState.equals(currentState)) {
-			level.setBlock(pos, newState, 11);
+		if (!newState.equals(rootState)) {
+			level.setBlock(rootPos, newState, 11);
 		}
 	}
 }
