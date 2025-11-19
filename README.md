@@ -7,6 +7,7 @@ Timber-style tree felling for Minecraft 1.21.10 on Fabric. Trees take a few chop
 - Sneak to opt out: crouching (`Shift`) does normal single-block breaking.
 - Safe detection: only fells structures with nearby leaves and up to 256 logs.
 - Clean drops: final hit uses the original (unstripped) log state for correct drops.
+- Fair durability: every swing costs durability; timbering only fells as many logs as your axe has durability for, leaving the rest if it breaks.
 - Client-agnostic: no client-side setup required; works server-side.
 
 ## Requirements
@@ -23,6 +24,7 @@ Timber-style tree felling for Minecraft 1.21.10 on Fabric. Trees take a few chop
 ## Usage
 - Break any log with an axe; progress is tracked per tree.
 - Keep swinging the same log until the quota is met; the rest of the tree is felled automatically.
+- If your axe breaks mid-timber, only the logs you could afford are felled—finish the remainder with a fresh tool.
 - Hold `Shift` while breaking to disable timbering for that action.
 - Player-placed log piles without leaves nearby will not be felled.
 
