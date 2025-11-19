@@ -31,6 +31,8 @@ import java.util.UUID;
 public final class TreeChopper {
 	private static final int MAX_LOGS = 256;
 	private static final BlockPos[] NEIGHBOR_OFFSETS = buildNeighborOffsets();
+	private static final int LEAF_RADIUS = 2;
+	private static final BlockPos[] LEAF_OFFSETS = buildLeafOffsets(LEAF_RADIUS);
 	private static final Map<UUID, Session> SESSIONS = new HashMap<>();
 	private static final ThreadLocal<Boolean> PROCESSING = ThreadLocal.withInitial(() -> false);
 
@@ -115,6 +117,9 @@ public final class TreeChopper {
 		Map<BlockPos, BlockState> originals = scanLogs(level, origin);
 		if (originals.isEmpty()) {
 			return null;
+		}
+		if (!hasLeavesNearby(level, originals)) {
+			return null; // likely user-placed logs; avoid timbering
 		}
 		int requiredChops = computeRequiredChops(originals.size());
 		msgOrigin(originals.size(), requiredChops);
@@ -288,6 +293,18 @@ public final class TreeChopper {
 			}
 		}
 
+	private static boolean hasLeavesNearby(Level level, Map<BlockPos, BlockState> originals) {
+		for (BlockPos log : originals.keySet()) {
+			for (BlockPos offset : LEAF_OFFSETS) {
+				BlockState maybeLeaf = level.getBlockState(log.offset(offset));
+				if (maybeLeaf.is(BlockTags.LEAVES)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * Build a 26-neighbor cube around origin (excludes 0,0,0) so we catch diagonally
 	 * touching logs (e.g., jungle branches) instead of only face-adjacent ones.
@@ -297,6 +314,19 @@ public final class TreeChopper {
 		for (int dx = -1; dx <= 1; dx++) {
 			for (int dy = -1; dy <= 1; dy++) {
 				for (int dz = -1; dz <= 1; dz++) {
+					if (dx == 0 && dy == 0 && dz == 0) continue;
+					offsets.add(new BlockPos(dx, dy, dz));
+				}
+			}
+		}
+		return offsets.toArray(BlockPos[]::new);
+	}
+
+	private static BlockPos[] buildLeafOffsets(int radius) {
+		List<BlockPos> offsets = new ArrayList<>();
+		for (int dx = -radius; dx <= radius; dx++) {
+			for (int dy = -radius; dy <= radius; dy++) {
+				for (int dz = -radius; dz <= radius; dz++) {
 					if (dx == 0 && dy == 0 && dz == 0) continue;
 					offsets.add(new BlockPos(dx, dy, dz));
 				}
