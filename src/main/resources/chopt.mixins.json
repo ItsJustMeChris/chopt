@@ -5,6 +5,8 @@
 	"mixins": [
 		"AxeItemAccessor"
 	],
+	"client": [
+	],
 	"injectors": {
 		"defaultRequire": 1
 	},

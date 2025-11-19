@@ -1,7 +1,7 @@
 package mod.chopt;
 
-import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import mod.chopt.mixin.AxeItemAccessor;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -72,7 +72,7 @@ public final class TreeChopper {
 		int remaining = Math.max(0, session.logsSize() - session.hits);
 		if (!session.isComplete()) {
 			msg(player, "hit " + session.hits + "/" + session.requiredChops + " (logs left " + remaining + ")");
-			applyStripVisual(level, pos, state);
+			applyStripVisual(level, pos, state, session);
 			return false; // cancel breaking to allow repeated hits on same log
 		}
 
@@ -209,7 +209,7 @@ public final class TreeChopper {
 		}
 	}
 
-	private static void applyStripVisual(Level level, BlockPos pos, BlockState currentState) {
+	private static void applyStripVisual(Level level, BlockPos pos, BlockState currentState, Session session) {
 		Block stripped = AxeItemAccessor.getStrippables().get(currentState.getBlock());
 		if (stripped == null) {
 			return;
