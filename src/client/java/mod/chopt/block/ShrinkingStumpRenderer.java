@@ -1,0 +1,70 @@
+package mod.chopt.block;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
+import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
+
+/**
+ * Renders the shrinking stump by reusing the stripped log's model and scaling X/Z.
+ */
+public class ShrinkingStumpRenderer implements BlockEntityRenderer<ShrinkingStumpBlockEntity, ShrinkingStumpRenderState> {
+	private final BlockRenderDispatcher dispatcher;
+
+	public ShrinkingStumpRenderer(BlockEntityRendererProvider.Context ctx) {
+		this.dispatcher = ctx.blockRenderDispatcher();
+	}
+
+	@Override
+	public ShrinkingStumpRenderState createRenderState() {
+		return new ShrinkingStumpRenderState();
+	}
+
+	@Override
+	public void extractRenderState(ShrinkingStumpBlockEntity stump, ShrinkingStumpRenderState state, float partialTick, Vec3 camera, ModelFeatureRenderer.CrumblingOverlay overlay) {
+		BlockState display = stump.getDisplayState();
+		state.displayState = display;
+		state.scale = scaleFor(stump);
+		if (stump.getLevel() != null) {
+			state.light = LevelRenderer.getLightColor(stump.getLevel(), stump.getBlockPos());
+		}
+	}
+
+	@Override
+	public void submit(ShrinkingStumpRenderState state, PoseStack pose, SubmitNodeCollector collector, CameraRenderState cameraState) {
+		if (state.displayState == null) return;
+		pose.pushPose();
+		pose.translate(0.5, 0, 0.5);
+		pose.scale(state.scale, 1.0f, state.scale);
+		pose.translate(-0.5, 0, -0.5);
+
+		MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+		dispatcher.renderSingleBlock(state.displayState, pose, buffers, state.light, 0);
+		buffers.endBatch();
+		pose.popPose();
+	}
+
+	@Override
+	public boolean shouldRender(ShrinkingStumpBlockEntity blockEntity, Vec3 cameraPos) {
+		return true; // always render when present
+	}
+
+	private float scaleFor(ShrinkingStumpBlockEntity stump) {
+		BlockState state = stump.getBlockState();
+		int stage = state.getValue(ShrinkingStumpBlock.STAGE);
+		return switch (stage) {
+			case 0 -> 1.0f;
+			case 1 -> 0.85f;
+			case 2 -> 0.68f;
+			default -> 0.55f;
+		};
+	}
+}

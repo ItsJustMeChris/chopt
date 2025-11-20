@@ -1,12 +1,17 @@
 package mod.chopt;
 
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import mod.chopt.ChoptBlocks;
+import mod.chopt.block.ShrinkingStumpBlock;
+import mod.chopt.block.ShrinkingStumpBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.ItemTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -40,7 +45,7 @@ public final class TreeChopper {
 
 	public static Inspection inspect(Level level, BlockPos pos) {
 		BlockState state = level.getBlockState(pos);
-		if (!state.is(BlockTags.LOGS)) {
+		if (!state.is(BlockTags.LOGS) && !state.is(ChoptBlocks.SHRINKING_STUMP)) {
 			return Inspection.notTree(pos);
 		}
 
@@ -71,7 +76,9 @@ public final class TreeChopper {
 			return true; // allow vanilla breaking while crouching
 		}
 
-		if (!state.is(BlockTags.LOGS)) {
+		boolean isLog = state.is(BlockTags.LOGS);
+		boolean isStump = state.is(ChoptBlocks.SHRINKING_STUMP);
+		if (!isLog && !isStump) {
 			Session existing = findSession(level, pos);
 			if (existing != null) {
 				SESSIONS.remove(existing.key());
@@ -104,6 +111,7 @@ public final class TreeChopper {
 		}
 
 		session.recordAttempt();
+		updateStumpVisual(level, pos, session);
 		int remaining = Math.max(0, session.logsSize() - session.hits());
 		if (!session.isComplete()) {
 			msg(player, "hit " + session.hits() + "/" + session.requiredChops + " (logs left " + remaining + ")");
@@ -161,6 +169,44 @@ public final class TreeChopper {
 		int chops = (int) Math.ceil(value);
 		chops = Math.max(1, Math.min(logCount, chops));
 		return Math.min(chops, 32); // hard cap for sanity
+	}
+
+	private static int computeStumpStage(Session session) {
+		int max = ShrinkingStumpBlock.MAX_STAGE;
+		if (session.requiredChops == 0) return 0;
+		double ratio = (double) session.hits() / (double) session.requiredChops;
+		int stage = (int) Math.ceil(ratio * max);
+		return Mth.clamp(stage, 1, max);
+	}
+
+	private static void updateStumpVisual(Level level, BlockPos pos, Session session) {
+		if (level.isClientSide()) return;
+		BlockState original = session.getOriginal(pos);
+		if (original == null) return;
+
+		BlockState stripped = StripHelper.getStripped(original).map(state -> ShrinkingStumpBlockEntity.copyAxis(original, state)).orElse(original);
+
+		int stage = computeStumpStage(session);
+		BlockState stumpState = ChoptBlocks.SHRINKING_STUMP.defaultBlockState().setValue(ShrinkingStumpBlock.STAGE, stage);
+		level.setBlock(pos, stumpState, 3);
+		if (level.getBlockEntity(pos) instanceof ShrinkingStumpBlockEntity stump) {
+			stump.setDisplayState(stripped);
+		}
+	}
+
+	/**
+	 * Accesses AxeItem's protected strippables map via subclassing to avoid mixins.
+	 */
+	private static final class StripHelper extends AxeItem {
+		private StripHelper() {
+			super(null, 0.0F, 0.0F, new Properties());
+		}
+
+		static java.util.Optional<BlockState> getStripped(BlockState state) {
+			Block target = STRIPPABLES.get(state.getBlock());
+			if (target == null) return java.util.Optional.empty();
+			return java.util.Optional.of(target.withPropertiesOf(state));
+		}
 	}
 
 	private static void msgOrigin(int logs, int chops) {

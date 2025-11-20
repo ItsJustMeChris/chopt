@@ -4,6 +4,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 import net.minecraft.core.BlockPos;
@@ -11,6 +12,7 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import mod.chopt.block.ShrinkingStumpRenderer;
 
 @SuppressWarnings("deprecation") // HudRenderCallback remains the simplest hook for a tiny debug overlay
 public class ChoptClient implements ClientModInitializer {
@@ -23,6 +25,7 @@ public class ChoptClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		ChoptNetworking.registerPayloads();
 		HudRenderCallback.EVENT.register(new TreeDebugHud());
+		BlockEntityRenderers.register(ChoptBlocks.SHRINKING_STUMP_ENTITY, ShrinkingStumpRenderer::new);
 
 		ClientPlayNetworking.registerGlobalReceiver(ChoptNetworking.InspectResponse.ID, (payload, context) -> {
 			context.client().execute(() -> TreeDebugHud.setInspection(
