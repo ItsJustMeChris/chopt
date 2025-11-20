@@ -25,6 +25,7 @@ public class ShrinkingStumpRenderer implements BlockEntityRenderer<ShrinkingStum
 
 	@Override
 	public void extractRenderState(ShrinkingStumpBlockEntity stump, ShrinkingStumpRenderState state, float partialTick, Vec3 camera, ModelFeatureRenderer.CrumblingOverlay overlay) {
+		BlockEntityRenderer.super.extractRenderState(stump, state, partialTick, camera, overlay);
 		BlockState display = stump.getDisplayState();
 		state.displayState = display;
 		state.scale = scaleFor(stump);
@@ -41,7 +42,7 @@ public class ShrinkingStumpRenderer implements BlockEntityRenderer<ShrinkingStum
 		pose.scale(state.scale, 1.0f, state.scale);
 		pose.translate(-0.5, 0, -0.5);
 
-		collector.submitBlock(pose, state.displayState, state.light, OverlayTexture.NO_OVERLAY, -1);
+		collector.submitBlock(pose, state.displayState, state.light, OverlayTexture.NO_OVERLAY, 0);
 		pose.popPose();
 	}
 

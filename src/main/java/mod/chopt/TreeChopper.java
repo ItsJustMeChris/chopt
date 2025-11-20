@@ -188,9 +188,16 @@ public final class TreeChopper {
 
 		int stage = computeStumpStage(session);
 		BlockState stumpState = ChoptBlocks.SHRINKING_STUMP.defaultBlockState().setValue(ShrinkingStumpBlock.STAGE, stage);
-		level.setBlock(pos, stumpState, 3);
+		BlockState previousState = level.getBlockState(pos);
+		level.setBlock(pos, stumpState, Block.UPDATE_CLIENTS);
 		if (level.getBlockEntity(pos) instanceof ShrinkingStumpBlockEntity stump) {
 			stump.setDisplayState(stripped);
+			stump.setChanged();
+			level.sendBlockUpdated(pos, previousState, stumpState, Block.UPDATE_CLIENTS);
+			level.blockEntityChanged(pos);
+			if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+				ChoptNetworking.syncShrinkingStump(serverLevel, pos, stripped);
+			}
 		}
 	}
 

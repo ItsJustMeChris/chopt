@@ -7,6 +7,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -41,14 +42,15 @@ public class ShrinkingStumpBlockEntity extends BlockEntity {
 	protected void saveAdditional(ValueOutput writer) {
 		super.saveAdditional(writer);
 		if (displayState != null) {
-			writer.store("display_state", BlockState.CODEC, displayState);
+			writer.putInt("display_state", Block.getId(displayState));
 		}
 	}
 
 	@Override
 	public void loadAdditional(ValueInput reader) {
 		super.loadAdditional(reader);
-		displayState = reader.read("display_state", BlockState.CODEC).orElse(null);
+		int id = reader.getIntOr("display_state", 0);
+		displayState = id != 0 ? Block.stateById(id) : null;
 	}
 
 	public static BlockState copyAxis(BlockState source, BlockState target) {
