@@ -177,14 +177,14 @@ public final class TreeChopper {
 		return new Session(key, originals, requiredChops, stumpStages);
 	}
 
-	private static int computeRequiredChops(int logCount) {
+	public static int computeRequiredChops(int logCount) {
 		double value = 0.12 * logCount + 2.0 * Math.log1p(logCount);
 		int chops = (int) Math.ceil(value);
 		chops = Math.max(1, Math.min(logCount, chops));
 		return Math.min(chops, 32); // hard cap for sanity
 	}
 
-	private static int computeStumpStages(int logCount) {
+	public static int computeStumpStages(int logCount) {
 		double value = 0.08 * logCount + 1.5 * Math.log1p(logCount);
 		int stages = (int) Math.ceil(value);
 		return Mth.clamp(stages, 2, ShrinkingStumpBlock.MAX_STAGE);
