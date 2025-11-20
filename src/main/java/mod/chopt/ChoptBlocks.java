@@ -9,10 +9,9 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
 
 /**
@@ -23,11 +22,8 @@ public final class ChoptBlocks {
 	private static final ResourceKey<Block> STUMP_KEY = ResourceKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(Chopt.MOD_ID, STUMP_NAME));
 
 	public static final ShrinkingStumpBlock SHRINKING_STUMP = new ShrinkingStumpBlock(
-		BlockBehaviour.Properties.of()
+		BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
 			.setId(STUMP_KEY)
-			.mapColor(MapColor.WOOD)
-			.strength(2.0F)
-			.sound(SoundType.WOOD)
 			.noOcclusion()
 			.pushReaction(PushReaction.DESTROY)
 	);
