@@ -25,6 +25,7 @@ public final class ChoptBlocks {
 		BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
 			.setId(STUMP_KEY)
 			.noOcclusion()
+			.ignitedByLava()
 			.pushReaction(PushReaction.DESTROY)
 	);
 
