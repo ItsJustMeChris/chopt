@@ -45,7 +45,8 @@ public final class TreeChopper {
 
 	public static Inspection inspect(Level level, BlockPos pos) {
 		BlockState state = level.getBlockState(pos);
-		if (!state.is(BlockTags.LOGS) && !state.is(ChoptBlocks.SHRINKING_STUMP)) {
+		boolean isStump = state.is(ChoptBlocks.SHRINKING_STUMP);
+		if (!state.is(BlockTags.LOGS) && !isStump) {
 			return Inspection.notTree(pos);
 		}
 
@@ -54,7 +55,8 @@ public final class TreeChopper {
 			return new Inspection(true, session.logsSize(), session.requiredChops, session.hits(), pos);
 		}
 
-		Map<BlockPos, BlockState> originals = scanLogs(level, pos);
+		BlockPos scanOrigin = isStump ? pos.above() : pos;
+		Map<BlockPos, BlockState> originals = scanLogs(level, scanOrigin);
 		if (originals.isEmpty() || !hasLeavesNearby(level, originals)) {
 			return Inspection.notTree(pos);
 		}
@@ -95,7 +97,13 @@ public final class TreeChopper {
 
 		Session session = findSession(level, pos);
 		if (session == null) {
-			session = buildSession(level, pos);
+			BlockPos scanOrigin = pos;
+			BlockPos baseOverride = null;
+			if (isStump) {
+				baseOverride = pos;           // keep stump location anchored
+				scanOrigin = pos.above();      // actual logs sit above the stump
+			}
+			session = buildSession(level, scanOrigin, baseOverride);
 			if (session == null) {
 				msg(player, "scan failed");
 				return true;
@@ -146,7 +154,12 @@ public final class TreeChopper {
 		// No-op: drops and cleanup handled in beforeBreak
 	}
 
-	private static Session buildSession(Level level, BlockPos origin) {
+	private static Session buildSession(Level level, BlockPos origin, /* nullable */ BlockPos baseOverride) {
+		BlockState originState = level.getBlockState(origin);
+		if (!originState.is(BlockTags.LOGS)) {
+			return null;
+		}
+
 		Map<BlockPos, BlockState> originals = scanLogs(level, origin);
 		if (originals.isEmpty()) {
 			return null;
@@ -154,7 +167,7 @@ public final class TreeChopper {
 		if (!hasLeavesNearby(level, originals)) {
 			return null; // likely user-placed logs; avoid timbering
 		}
-		BlockPos base = findBase(originals);
+		BlockPos base = baseOverride != null ? baseOverride : findBase(originals);
 		if (base == null) {
 			return null;
 		}
@@ -181,22 +194,32 @@ public final class TreeChopper {
 
 	private static void updateStumpVisual(Level level, BlockPos pos, Session session) {
 		if (level.isClientSide()) return;
-		BlockState original = session.getOriginal(pos);
-		if (original == null) return;
+		BlockPos stumpPos = session.key().base();
+		BlockState resolved = session.getOriginal(stumpPos);
+		if (resolved == null) {
+			resolved = session.getOriginal(pos);
+		}
+		if (resolved == null) {
+			resolved = session.anyOriginal();
+		}
+		if (resolved == null) return;
 
-		BlockState stripped = StripHelper.getStripped(original).map(state -> ShrinkingStumpBlockEntity.copyAxis(original, state)).orElse(original);
+		final BlockState original = resolved;
+		BlockState stripped = StripHelper.getStripped(original)
+			.map(state -> ShrinkingStumpBlockEntity.copyAxis(original, state))
+			.orElse(original);
 
 		int stage = computeStumpStage(session);
 		BlockState stumpState = ChoptBlocks.SHRINKING_STUMP.defaultBlockState().setValue(ShrinkingStumpBlock.STAGE, stage);
-		BlockState previousState = level.getBlockState(pos);
-		level.setBlock(pos, stumpState, Block.UPDATE_CLIENTS);
-		if (level.getBlockEntity(pos) instanceof ShrinkingStumpBlockEntity stump) {
+		BlockState previousState = level.getBlockState(stumpPos);
+		level.setBlock(stumpPos, stumpState, Block.UPDATE_CLIENTS);
+		if (level.getBlockEntity(stumpPos) instanceof ShrinkingStumpBlockEntity stump) {
 			stump.setDisplayState(stripped);
 			stump.setChanged();
-			level.sendBlockUpdated(pos, previousState, stumpState, Block.UPDATE_CLIENTS);
-			level.blockEntityChanged(pos);
+			level.sendBlockUpdated(stumpPos, previousState, stumpState, Block.UPDATE_CLIENTS);
+			level.blockEntityChanged(stumpPos);
 			if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
-				ChoptNetworking.syncShrinkingStump(serverLevel, pos, stripped);
+				ChoptNetworking.syncShrinkingStump(serverLevel, stumpPos, stripped);
 			}
 		}
 	}
@@ -334,7 +357,7 @@ public final class TreeChopper {
 		}
 
 		boolean contains(BlockPos pos) {
-			return originals.containsKey(pos);
+			return pos.equals(key.base()) || originals.containsKey(pos);
 		}
 
 		void recordAttempt() {
@@ -351,6 +374,10 @@ public final class TreeChopper {
 
 		BlockState getOriginal(BlockPos pos) {
 			return originals.get(pos);
+		}
+
+		BlockState anyOriginal() {
+			return originals.values().stream().findFirst().orElse(null);
 		}
 
 		int hits() {

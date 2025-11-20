@@ -9,6 +9,7 @@ import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
+import mod.chopt.ChoptBlocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -74,7 +75,7 @@ public class ChoptClient implements ClientModInitializer {
 
 			BlockPos pos = blockHit.getBlockPos();
 			BlockState state = client.level.getBlockState(pos);
-			if (!state.is(BlockTags.LOGS)) {
+			if (!state.is(BlockTags.LOGS) && !state.is(ChoptBlocks.SHRINKING_STUMP)) {
 				TreeDebugHud.clear();
 				lastSentPos = null;
 				return;
