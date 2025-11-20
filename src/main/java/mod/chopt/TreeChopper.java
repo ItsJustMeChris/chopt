@@ -2,6 +2,7 @@ package mod.chopt;
 
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -18,7 +19,6 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Tree chopping helper that scales chops based on tree size.
@@ -28,7 +28,7 @@ public final class TreeChopper {
 	private static final BlockPos[] NEIGHBOR_OFFSETS = buildNeighborOffsets();
 	private static final int LEAF_RADIUS = 2;
 	private static final BlockPos[] LEAF_OFFSETS = buildLeafOffsets(LEAF_RADIUS);
-	private static final Map<UUID, Session> SESSIONS = new HashMap<>();
+	private static final Map<SessionKey, Session> SESSIONS = new HashMap<>();
 	private static final ThreadLocal<Boolean> PROCESSING = ThreadLocal.withInitial(() -> false);
 
 	private TreeChopper() {}
@@ -36,6 +36,25 @@ public final class TreeChopper {
 	public static void register() {
 		PlayerBlockBreakEvents.BEFORE.register(TreeChopper::beforeBreak);
 		PlayerBlockBreakEvents.AFTER.register(TreeChopper::afterBreak);
+	}
+
+	public static Inspection inspect(Level level, BlockPos pos) {
+		BlockState state = level.getBlockState(pos);
+		if (!state.is(BlockTags.LOGS)) {
+			return Inspection.notTree(pos);
+		}
+
+		Session session = findSession(level, pos);
+		if (session != null) {
+			return new Inspection(true, session.logsSize(), session.requiredChops, session.hits(), pos);
+		}
+
+		Map<BlockPos, BlockState> originals = scanLogs(level, pos);
+		if (originals.isEmpty() || !hasLeavesNearby(level, originals)) {
+			return Inspection.notTree(pos);
+		}
+		int requiredChops = computeRequiredChops(originals.size());
+		return new Inspection(true, originals.size(), requiredChops, 0, pos);
 	}
 
 	private static boolean beforeBreak(Level level, Player player, BlockPos pos, BlockState state, /* nullable */ Object blockEntity) {
@@ -48,47 +67,47 @@ public final class TreeChopper {
 		}
 
 		if (player.isShiftKeyDown()) {
-			dropSession(player, "ignored: sneaking");
+			msg(player, "ignored: sneaking");
 			return true; // allow vanilla breaking while crouching
 		}
 
 		if (!state.is(BlockTags.LOGS)) {
-			dropSession(player, "reset: not a log");
+			Session existing = findSession(level, pos);
+			if (existing != null) {
+				SESSIONS.remove(existing.key());
+			}
+			msg(player, "reset: not a log");
 			return true;
 		}
 
 		ItemStack held = player.getMainHandItem();
 		if (!held.is(ItemTags.AXES)) {
-			dropSession(player, "ignored: not an axe");
+			msg(player, "ignored: not an axe");
 			return true;
 		}
 
-		Session session = SESSIONS.get(player.getUUID());
-		if (session == null || !session.contains(pos)) {
+		Session session = findSession(level, pos);
+		if (session == null) {
 			session = buildSession(level, pos);
 			if (session == null) {
 				msg(player, "scan failed");
 				return true;
 			}
-			SESSIONS.put(player.getUUID(), session);
+			SESSIONS.put(session.key(), session);
 			msg(player, "tree size " + session.logsSize() + ", chops needed " + session.requiredChops);
 		}
 
-		session.recordAttempt();
 		applyDurabilityLoss(player, held, 1); // pay a swing immediately so partial attempts still cost durability
 		if (held.isEmpty()) {
-			dropSession(player, "axe broke");
+			msg(player, "axe broke");
 			return true;
-		}
-		int remaining = Math.max(0, session.logsSize() - session.hits);
-		if (!session.isComplete()) {
-			msg(player, "hit " + session.hits + "/" + session.requiredChops + " (logs left " + remaining + ")");
-			return false; // cancel breaking to allow repeated hits on same log
 		}
 
-		if (held.isEmpty()) {
-			dropSession(player, "axe broke; finish with another tool");
-			return true;
+		session.recordAttempt();
+		int remaining = Math.max(0, session.logsSize() - session.hits());
+		if (!session.isComplete()) {
+			msg(player, "hit " + session.hits() + "/" + session.requiredChops + " (logs left " + remaining + ")");
+			return false; // cancel breaking to allow repeated hits on same log
 		}
 
 		// Final chop: drop unstripped log and fell rest manually to avoid stripped drops
@@ -111,20 +130,12 @@ public final class TreeChopper {
 		} finally {
 			PROCESSING.set(false);
 		}
-		SESSIONS.remove(player.getUUID());
+		SESSIONS.remove(session.key());
 		return false; // we've handled the break and drops ourselves
 	}
 
 	private static void afterBreak(Level level, Player player, BlockPos pos, BlockState state, /* nullable */ Object blockEntity) {
-		if (level.isClientSide()) {
-			return;
-		}
-		Session session = SESSIONS.get(player.getUUID());
-		if (session == null) {
-			return;
-		}
-		// No-op now: final felling handled synchronously in beforeBreak to control drops
-		SESSIONS.remove(player.getUUID());
+		// No-op: drops and cleanup handled in beforeBreak
 	}
 
 	private static Session buildSession(Level level, BlockPos origin) {
@@ -135,9 +146,14 @@ public final class TreeChopper {
 		if (!hasLeavesNearby(level, originals)) {
 			return null; // likely user-placed logs; avoid timbering
 		}
+		BlockPos base = findBase(originals);
+		if (base == null) {
+			return null;
+		}
 		int requiredChops = computeRequiredChops(originals.size());
 		msgOrigin(originals.size(), requiredChops);
-		return new Session(originals, requiredChops);
+		SessionKey key = new SessionKey(level.dimension(), base.immutable());
+		return new Session(key, originals, requiredChops);
 	}
 
 	private static int computeRequiredChops(int logCount) {
@@ -163,18 +179,18 @@ public final class TreeChopper {
 			}
 
 			BlockState state = level.getBlockState(current);
-				if (!state.is(BlockTags.LOGS)) {
-					continue;
-				}
-				originals.put(current, state);
+			if (!state.is(BlockTags.LOGS)) {
+				continue;
+			}
+			originals.put(current, state);
 
-				for (BlockPos offset : NEIGHBOR_OFFSETS) {
-					BlockPos next = current.offset(offset);
-					if (!originals.containsKey(next) && level.getBlockState(next).is(BlockTags.LOGS)) {
-						queue.add(next);
-					}
+			for (BlockPos offset : NEIGHBOR_OFFSETS) {
+				BlockPos next = current.offset(offset);
+				if (!originals.containsKey(next) && level.getBlockState(next).is(BlockTags.LOGS)) {
+					queue.add(next);
 				}
 			}
+		}
 
 		return originals;
 	}
@@ -216,19 +232,52 @@ public final class TreeChopper {
 		tool.hurtAndBreak(amount, player, EquipmentSlot.MAINHAND);
 	}
 
-	private static void dropSession(Player player, String reason) {
-		SESSIONS.remove(player.getUUID());
-		msg(player, reason);
+	private static Session findSession(Level level, BlockPos pos) {
+		for (Session session : SESSIONS.values()) {
+			if (!session.key().dimension().equals(level.dimension())) {
+				continue;
+			}
+			if (session.contains(pos)) {
+				return session;
+			}
+		}
+		return null;
+	}
+
+	private static BlockPos findBase(Map<BlockPos, BlockState> originals) {
+		BlockPos best = null;
+		for (BlockPos candidate : originals.keySet()) {
+			if (best == null) {
+				best = candidate;
+				continue;
+			}
+			if (candidate.getY() < best.getY()) {
+				best = candidate;
+				continue;
+			}
+			if (candidate.getY() == best.getY()) {
+				if (candidate.getX() < best.getX() || (candidate.getX() == best.getX() && candidate.getZ() < best.getZ())) {
+					best = candidate;
+				}
+			}
+		}
+		return best;
 	}
 
 	private static final class Session {
+		private final SessionKey key;
 		private final Map<BlockPos, BlockState> originals;
 		private final int requiredChops;
 		private int hits = 0;
 
-		Session(Map<BlockPos, BlockState> originals, int requiredChops) {
+		Session(SessionKey key, Map<BlockPos, BlockState> originals, int requiredChops) {
+			this.key = key;
 			this.originals = originals;
 			this.requiredChops = requiredChops;
+		}
+
+		SessionKey key() {
+			return key;
 		}
 
 		boolean contains(BlockPos pos) {
@@ -249,6 +298,18 @@ public final class TreeChopper {
 
 		BlockState getOriginal(BlockPos pos) {
 			return originals.get(pos);
+		}
+
+		int hits() {
+			return hits;
+		}
+	}
+
+	private record SessionKey(ResourceKey<Level> dimension, BlockPos base) {}
+
+	public record Inspection(boolean isTree, int logs, int requiredChops, int hits, BlockPos inspectedPos) {
+		public static Inspection notTree(BlockPos pos) {
+			return new Inspection(false, 0, 0, 0, pos);
 		}
 	}
 

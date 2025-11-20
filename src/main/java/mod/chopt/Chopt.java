@@ -7,6 +7,8 @@ public class Chopt implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		ChoptNetworking.registerPayloads();
 		TreeChopper.register();
+		ChoptNetworking.registerServerReceivers();
 	}
 }

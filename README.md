@@ -8,6 +8,7 @@ Timber-style tree felling for Minecraft 1.21.10 on Fabric. Trees take a few chop
 - Safe detection: only fells structures with nearby leaves and up to 256 logs.
 - Clean drops: final hit uses the original (unstripped) log state for correct drops.
 - Fair durability: every swing costs durability; timbering only fells as many logs as your axe has durability for, leaving the rest if it breaks.
+- Shared effort: chop progress is tracked per tree, so multiple players can contribute swings to the same timber.
 - Client-agnostic: no client-side setup required; works server-side.
 
 ## Requirements
@@ -37,7 +38,7 @@ Outputs are under `build/libs/` (`-dev` jars are for development, the remapped j
 ## Development notes
 - Uses official Mojang mappings; see `AGENTS.md` for cache and inspection tips.
 - Tree scanning lives in `src/main/java/mod/chopt/TreeChopper.java`.
-- Client entrypoint is empty (`ChoptClient`) because all logic is server-side.
+- Client entrypoint (`ChoptClient`) adds a lightweight debug overlay: hover a log to see whether it's treated as a tree and the current chop progress.
 
 ## Known limits
 - Hard cap of 256 logs per tree scan.
