@@ -9,7 +9,6 @@ import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
-import mod.chopt.ChoptBlocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;

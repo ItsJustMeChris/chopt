@@ -30,7 +30,7 @@ public final class ChoptBlocks {
 	);
 
 	public static final BlockEntityType<ShrinkingStumpBlockEntity> SHRINKING_STUMP_ENTITY =
-		FabricBlockEntityTypeBuilder.create(ShrinkingStumpBlockEntity::new, SHRINKING_STUMP).build(null);
+		FabricBlockEntityTypeBuilder.create(ShrinkingStumpBlockEntity::new, SHRINKING_STUMP).build();
 
 	private static boolean registered;
 

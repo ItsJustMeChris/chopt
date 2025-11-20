@@ -1,7 +1,6 @@
 package mod.chopt;
 
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
-import mod.chopt.ChoptBlocks;
 import mod.chopt.block.ShrinkingStumpBlock;
 import mod.chopt.block.ShrinkingStumpBlockEntity;
 import net.minecraft.core.BlockPos;
