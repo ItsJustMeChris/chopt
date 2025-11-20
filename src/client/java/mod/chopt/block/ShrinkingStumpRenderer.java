@@ -1,13 +1,18 @@
 package mod.chopt.block;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.SheetedDecalTextureGenerator;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.CameraRenderState;
-import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.resources.model.ModelBakery;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
@@ -32,6 +37,7 @@ public class ShrinkingStumpRenderer implements BlockEntityRenderer<ShrinkingStum
 		if (stump.getLevel() != null) {
 			state.light = LevelRenderer.getLightColor(stump.getLevel(), stump.getBlockPos());
 		}
+		state.level = stump.getLevel() instanceof ClientLevel clientLevel ? clientLevel : null;
 	}
 
 	@Override
@@ -43,6 +49,20 @@ public class ShrinkingStumpRenderer implements BlockEntityRenderer<ShrinkingStum
 		pose.translate(-0.5, 0, -0.5);
 
 		collector.submitBlock(pose, state.displayState, state.light, OverlayTexture.NO_OVERLAY, 0);
+
+		if (state.breakProgress != null && state.level != null) {
+			ModelFeatureRenderer.CrumblingOverlay breakOverlay = state.breakProgress;
+			RenderType destroyType = ModelBakery.DESTROY_TYPES.get(breakOverlay.progress());
+			PoseStack overlayStack = new PoseStack();
+			overlayStack.last().set(pose.last()); // match scaled stump transform
+			SheetedDecalTextureGenerator decalBuffer = new SheetedDecalTextureGenerator(
+				Minecraft.getInstance().renderBuffers().crumblingBufferSource().getBuffer(destroyType),
+				breakOverlay.cameraPose(),
+				1.0f
+			);
+			Minecraft.getInstance().getBlockRenderer()
+				.renderBreakingTexture(state.displayState, state.blockPos, state.level, overlayStack, decalBuffer);
+		}
 		pose.popPose();
 	}
 
