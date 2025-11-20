@@ -17,6 +17,7 @@ import mod.chopt.block.ShrinkingStumpRenderer;
 
 @SuppressWarnings("deprecation") // HudRenderCallback remains the simplest hook for a tiny debug overlay
 public class ChoptClient implements ClientModInitializer {
+	private static final boolean ENABLE_DEBUG_OVERLAY = false;
 	private static final int INSPECT_INTERVAL_TICKS = 5;
 	private final java.util.Map<BlockPos, net.minecraft.world.level.block.state.BlockState> pendingStumpDisplays = new java.util.HashMap<>();
 	private BlockPos lastInspectedPos = null;
@@ -25,7 +26,6 @@ public class ChoptClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		ChoptNetworking.registerPayloads();
-		HudRenderCallback.EVENT.register(new TreeDebugHud());
 		BlockEntityRenderers.register(ChoptBlocks.SHRINKING_STUMP_ENTITY, ShrinkingStumpRenderer::new);
 
 		ClientPlayNetworking.registerGlobalReceiver(ChoptNetworking.ShrinkingStumpDisplay.ID, (payload, context) -> {
@@ -54,6 +54,10 @@ public class ChoptClient implements ClientModInitializer {
 					}
 					return false;
 				});
+			}
+
+			if (!ENABLE_DEBUG_OVERLAY) {
+				return; // skip HUD + inspect logic in release builds
 			}
 
 			HitResult hit = client.hitResult;
@@ -86,6 +90,12 @@ public class ChoptClient implements ClientModInitializer {
 				TreeDebugHud.clear();
 			}
 		});
+
+		if (!ENABLE_DEBUG_OVERLAY) {
+			return;
+		}
+
+		HudRenderCallback.EVENT.register(new TreeDebugHud());
 	}
 
 	private static int estimateHits(BlockState state, int requiredChops) {
