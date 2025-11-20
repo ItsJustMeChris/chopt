@@ -1,6 +1,5 @@
 package mod.chopt;
 
-import mod.chopt.mixin.AxeItemAccessor;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
@@ -11,17 +10,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.UUID;
 
 /**
@@ -87,7 +83,6 @@ public final class TreeChopper {
 		int remaining = Math.max(0, session.logsSize() - session.hits);
 		if (!session.isComplete()) {
 			msg(player, "hit " + session.hits + "/" + session.requiredChops + " (logs left " + remaining + ")");
-			applyStripVisual(level, pos, state, session);
 			return false; // cancel breaking to allow repeated hits on same log
 		}
 
@@ -142,9 +137,7 @@ public final class TreeChopper {
 		}
 		int requiredChops = computeRequiredChops(originals.size());
 		msgOrigin(originals.size(), requiredChops);
-		BlockPos base = findBase(originals);
-		List<BlockPos> stripOrder = orderLogs(originals, base);
-		return new Session(originals, requiredChops, base, stripOrder);
+		return new Session(originals, requiredChops);
 	}
 
 	private static int computeRequiredChops(int logCount) {
@@ -184,31 +177,6 @@ public final class TreeChopper {
 			}
 
 		return originals;
-	}
-
-	private static BlockPos findBase(Map<BlockPos, BlockState> originals) {
-		return originals.keySet().stream()
-			.min((a, b) -> {
-				int cmp = Integer.compare(a.getY(), b.getY());
-				if (cmp != 0) return cmp;
-				cmp = Integer.compare(a.getX(), b.getX());
-				if (cmp != 0) return cmp;
-				return Integer.compare(a.getZ(), b.getZ());
-			})
-			.orElse(null);
-	}
-
-	private static List<BlockPos> orderLogs(Map<BlockPos, BlockState> originals, BlockPos base) {
-		Comparator<BlockPos> byPos = (a, b) -> {
-			int cmp = Integer.compare(a.getY(), b.getY());
-			if (cmp != 0) return cmp;
-			cmp = Integer.compare(a.getX(), b.getX());
-			if (cmp != 0) return cmp;
-			return Integer.compare(a.getZ(), b.getZ());
-		};
-		return originals.keySet().stream()
-			.sorted(byPos)
-			.collect(Collectors.toList());
 	}
 
 	private static int chopRemainingWithDurability(Level level, Player player, Session session, BlockPos alreadyBroken, ItemStack tool) {
@@ -256,15 +224,11 @@ public final class TreeChopper {
 	private static final class Session {
 		private final Map<BlockPos, BlockState> originals;
 		private final int requiredChops;
-		private final BlockPos base;
-		private final List<BlockPos> stripOrder;
 		private int hits = 0;
 
-		Session(Map<BlockPos, BlockState> originals, int requiredChops, BlockPos base, List<BlockPos> stripOrder) {
+		Session(Map<BlockPos, BlockState> originals, int requiredChops) {
 			this.originals = originals;
 			this.requiredChops = requiredChops;
-			this.base = base;
-			this.stripOrder = stripOrder;
 		}
 
 		boolean contains(BlockPos pos) {
@@ -286,51 +250,7 @@ public final class TreeChopper {
 		BlockState getOriginal(BlockPos pos) {
 			return originals.get(pos);
 		}
-
-		BlockPos getBase() {
-			return base;
-		}
-
-		int getHits() {
-			return hits;
-		}
-
-		BlockPos getStripTargetForCurrentHit() {
-			if (stripOrder.isEmpty()) {
-				return null;
-			}
-			int idx = Math.min(Math.max(hits - 1, 0), stripOrder.size() - 1);
-			return stripOrder.get(idx);
-		}
 	}
-
-	private static void applyStripVisual(Level level, BlockPos pos, BlockState currentState, Session session) {
-		BlockPos targetPos = session.getStripTargetForCurrentHit();
-		if (targetPos == null) {
-			targetPos = session.getBase();
-		}
-		if (targetPos == null) {
-			targetPos = pos;
-		}
-
-		// Prefer the original state for the target so we preserve axis
-		BlockState targetState = session.getOriginal(targetPos);
-		if (targetState == null) {
-			targetState = level.getBlockState(targetPos);
-		}
-
-		Block stripped = AxeItemAccessor.getStrippables().get(targetState.getBlock());
-		if (stripped == null) {
-			return;
-		}
-			BlockState newState = stripped.defaultBlockState();
-			if (targetState.hasProperty(RotatedPillarBlock.AXIS) && newState.hasProperty(RotatedPillarBlock.AXIS)) {
-				newState = newState.setValue(RotatedPillarBlock.AXIS, targetState.getValue(RotatedPillarBlock.AXIS));
-			}
-			if (!newState.equals(targetState)) {
-				level.setBlock(targetPos, newState, 11);
-			}
-		}
 
 	private static boolean hasLeavesNearby(Level level, Map<BlockPos, BlockState> originals) {
 		for (BlockPos log : originals.keySet()) {
