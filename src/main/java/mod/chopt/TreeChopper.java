@@ -73,7 +73,6 @@ public final class TreeChopper {
 		}
 
 		if (player.isShiftKeyDown()) {
-			msg(player, "ignored: sneaking");
 			return true; // allow vanilla breaking while crouching
 		}
 
@@ -84,13 +83,11 @@ public final class TreeChopper {
 			if (existing != null) {
 				SESSIONS.remove(existing.key());
 			}
-			msg(player, "reset: not a log");
 			return true;
 		}
 
 		ItemStack held = player.getMainHandItem();
 		if (!held.is(ItemTags.AXES)) {
-			msg(player, "ignored: not an axe");
 			return true;
 		}
 
@@ -104,24 +101,19 @@ public final class TreeChopper {
 			}
 			session = buildSession(level, scanOrigin, baseOverride);
 			if (session == null) {
-				msg(player, "scan failed");
 				return true;
 			}
 			SESSIONS.put(session.key(), session);
-			msg(player, "tree size " + session.logsSize() + ", chops needed " + session.requiredChops);
 		}
 
 		applyDurabilityLoss(player, held, 1); // pay a swing immediately so partial attempts still cost durability
 		if (held.isEmpty()) {
-			msg(player, "axe broke");
 			return true;
 		}
 
 		session.recordAttempt();
 		updateStumpVisual(level, pos, session);
-		int remaining = Math.max(0, session.logsSize() - session.hits());
 		if (!session.isComplete()) {
-			msg(player, "hit " + session.hits() + "/" + session.requiredChops + " (logs left " + remaining + ")");
 			return false; // cancel breaking to allow repeated hits on same log
 		}
 
@@ -138,9 +130,7 @@ public final class TreeChopper {
 			int felled = chopRemainingWithDurability(level, player, session, pos, held);
 			int remainingLogs = Math.max(0, session.logsSize() - 1 - felled); // exclude the already broken log
 			if (remainingLogs > 0) {
-				msg(player, "axe broke; " + remainingLogs + " logs remain");
 			} else {
-				msg(player, "quota reached, timber!");
 			}
 		} finally {
 			PROCESSING.set(false);
@@ -172,7 +162,6 @@ public final class TreeChopper {
 		}
 		int requiredChops = computeRequiredChops(originals.size());
 		int stumpStages = computeStumpStages(originals.size());
-		msgOrigin(originals.size(), requiredChops);
 		SessionKey key = new SessionKey(level.dimension(), base.immutable());
 		return new Session(key, originals, requiredChops, stumpStages);
 	}
@@ -246,10 +235,6 @@ public final class TreeChopper {
 		}
 	}
 
-	private static void msgOrigin(int logs, int chops) {
-		// logging disabled for release
-	}
-
 	private static Map<BlockPos, BlockState> scanLogs(Level level, BlockPos origin) {
 		Map<BlockPos, BlockState> originals = new HashMap<>();
 		Deque<BlockPos> queue = new ArrayDeque<>();
@@ -302,10 +287,6 @@ public final class TreeChopper {
 		}
 
 		return felled;
-	}
-
-	private static void msg(Player player, String text) {
-		// chat logging disabled for release
 	}
 
 	private static void applyDurabilityLoss(Player player, ItemStack tool, int amount) {
