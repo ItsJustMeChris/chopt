@@ -1,15 +1,13 @@
 package mod.chopt.block;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.CameraRenderState;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
@@ -17,10 +15,7 @@ import net.minecraft.world.phys.Vec3;
  * Renders the shrinking stump by reusing the stripped log's model and scaling X/Z.
  */
 public class ShrinkingStumpRenderer implements BlockEntityRenderer<ShrinkingStumpBlockEntity, ShrinkingStumpRenderState> {
-	private final BlockRenderDispatcher dispatcher;
-
-	public ShrinkingStumpRenderer(BlockEntityRendererProvider.Context ctx) {
-		this.dispatcher = ctx.blockRenderDispatcher();
+	public ShrinkingStumpRenderer(BlockEntityRendererProvider.Context ignored) {
 	}
 
 	@Override
@@ -46,9 +41,7 @@ public class ShrinkingStumpRenderer implements BlockEntityRenderer<ShrinkingStum
 		pose.scale(state.scale, 1.0f, state.scale);
 		pose.translate(-0.5, 0, -0.5);
 
-		MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
-		dispatcher.renderSingleBlock(state.displayState, pose, buffers, state.light, 0);
-		buffers.endBatch();
+		collector.submitBlock(pose, state.displayState, state.light, OverlayTexture.NO_OVERLAY, -1);
 		pose.popPose();
 	}
 

@@ -40,8 +40,8 @@ public class ShrinkingStumpBlock extends Block implements EntityBlock {
 
 	@Override
 	public RenderShape getRenderShape(BlockState state) {
-		// Standard model render; visuals provided by the BER.
-		return RenderShape.MODEL;
+		// Hide the baked model so only the BER's scaled log shows up.
+		return RenderShape.INVISIBLE;
 	}
 
 	@Override
