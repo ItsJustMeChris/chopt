@@ -54,11 +54,7 @@ public class ShrinkingStumpRenderer implements BlockEntityRenderer<ShrinkingStum
 	private float scaleFor(ShrinkingStumpBlockEntity stump) {
 		BlockState state = stump.getBlockState();
 		int stage = state.getValue(ShrinkingStumpBlock.STAGE);
-		return switch (stage) {
-			case 0 -> 1.0f;
-			case 1 -> 0.85f;
-			case 2 -> 0.68f;
-			default -> 0.55f;
-		};
+		int stages = state.getValue(ShrinkingStumpBlock.STAGES);
+		return ShrinkingStumpBlock.scaleFor(stage, stages);
 	}
 }

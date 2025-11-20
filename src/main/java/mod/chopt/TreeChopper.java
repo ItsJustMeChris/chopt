@@ -172,9 +172,10 @@ public final class TreeChopper {
 			return null;
 		}
 		int requiredChops = computeRequiredChops(originals.size());
+		int stumpStages = computeStumpStages(originals.size());
 		msgOrigin(originals.size(), requiredChops);
 		SessionKey key = new SessionKey(level.dimension(), base.immutable());
-		return new Session(key, originals, requiredChops);
+		return new Session(key, originals, requiredChops, stumpStages);
 	}
 
 	private static int computeRequiredChops(int logCount) {
@@ -184,12 +185,17 @@ public final class TreeChopper {
 		return Math.min(chops, 32); // hard cap for sanity
 	}
 
+	private static int computeStumpStages(int logCount) {
+		double value = 0.08 * logCount + 1.5 * Math.log1p(logCount);
+		int stages = (int) Math.ceil(value);
+		return Mth.clamp(stages, 2, ShrinkingStumpBlock.MAX_STAGE);
+	}
+
 	private static int computeStumpStage(Session session) {
-		int max = ShrinkingStumpBlock.MAX_STAGE;
 		if (session.requiredChops == 0) return 0;
 		double ratio = (double) session.hits() / (double) session.requiredChops;
-		int stage = (int) Math.ceil(ratio * max);
-		return Mth.clamp(stage, 1, max);
+		int stage = (int) Math.ceil(ratio * session.stumpStages());
+		return Mth.clamp(stage, 1, session.stumpStages());
 	}
 
 	private static void updateStumpVisual(Level level, BlockPos pos, Session session) {
@@ -210,7 +216,9 @@ public final class TreeChopper {
 			.orElse(original);
 
 		int stage = computeStumpStage(session);
-		BlockState stumpState = ChoptBlocks.SHRINKING_STUMP.defaultBlockState().setValue(ShrinkingStumpBlock.STAGE, stage);
+		BlockState stumpState = ChoptBlocks.SHRINKING_STUMP.defaultBlockState()
+			.setValue(ShrinkingStumpBlock.STAGES, session.stumpStages())
+			.setValue(ShrinkingStumpBlock.STAGE, stage);
 		BlockState previousState = level.getBlockState(stumpPos);
 		level.setBlock(stumpPos, stumpState, Block.UPDATE_CLIENTS);
 		if (level.getBlockEntity(stumpPos) instanceof ShrinkingStumpBlockEntity stump) {
@@ -344,12 +352,14 @@ public final class TreeChopper {
 		private final SessionKey key;
 		private final Map<BlockPos, BlockState> originals;
 		private final int requiredChops;
+		private final int stumpStages;
 		private int hits = 0;
 
-		Session(SessionKey key, Map<BlockPos, BlockState> originals, int requiredChops) {
+		Session(SessionKey key, Map<BlockPos, BlockState> originals, int requiredChops, int stumpStages) {
 			this.key = key;
 			this.originals = originals;
 			this.requiredChops = requiredChops;
+			this.stumpStages = stumpStages;
 		}
 
 		SessionKey key() {
@@ -382,6 +392,10 @@ public final class TreeChopper {
 
 		int hits() {
 			return hits;
+		}
+
+		int stumpStages() {
+			return stumpStages;
 		}
 	}
 
