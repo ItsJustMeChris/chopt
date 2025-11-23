@@ -388,11 +388,16 @@ public final class TreeChopper {
 	}
 
 	private static boolean hasLeavesNearby(Level level, Map<BlockPos, BlockState> originals) {
-		for (BlockPos log : originals.keySet()) {
+		for (Map.Entry<BlockPos, BlockState> entry : originals.entrySet()) {
+			BlockPos log = entry.getKey();
+			boolean isNetherStem = entry.getValue().is(BlockTags.CRIMSON_STEMS) || entry.getValue().is(BlockTags.WARPED_STEMS);
 			for (BlockPos offset : LEAF_OFFSETS) {
 				BlockState maybeLeaf = level.getBlockState(log.offset(offset));
 				if (maybeLeaf.is(BlockTags.LEAVES)) {
 					return true;
+				}
+				if (isNetherStem && (maybeLeaf.is(BlockTags.WART_BLOCKS) || maybeLeaf.is(Blocks.SHROOMLIGHT))) {
+					return true; // huge fungi use wart blocks/shroomlights instead of leaves
 				}
 			}
 		}
