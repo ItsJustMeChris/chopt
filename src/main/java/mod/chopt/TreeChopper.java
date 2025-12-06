@@ -107,12 +107,15 @@ public final class TreeChopper {
 		}
 
 		applyDurabilityLoss(player, held, 1); // pay a swing immediately so partial attempts still cost durability
-		if (held.isEmpty()) {
-			return true;
-		}
+		boolean brokeAxe = held.isEmpty();
 
 		session.recordAttempt();
 		updateStumpVisual(level, pos, session);
+		if (brokeAxe) {
+			// Axe broke from this swing—visuals are already updated, so just cancel
+			// the break to keep the stump block/entity intact for the next tool.
+			return false;
+		}
 		if (!session.isComplete()) {
 			return false; // cancel breaking to allow repeated hits on same log
 		}
