@@ -19,10 +19,12 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * Tree chopping helper that scales chops based on tree size.
@@ -72,10 +74,6 @@ public final class TreeChopper {
 			return true;
 		}
 
-		if (player.isShiftKeyDown()) {
-			return true; // allow vanilla breaking while crouching
-		}
-
 		boolean isLog = state.is(BlockTags.LOGS);
 		boolean isStump = state.is(ChoptBlocks.SHRINKING_STUMP);
 		if (!isLog && !isStump) {
@@ -87,7 +85,10 @@ public final class TreeChopper {
 		}
 
 		ItemStack held = player.getMainHandItem();
-		if (!held.is(ItemTags.AXES)) {
+		if (player.isShiftKeyDown() || !held.is(ItemTags.AXES)) {
+			if (isStump && handleManualStumpBreak(level, player, pos, state)) {
+				return false; // converted into partial timbering
+			}
 			return true;
 		}
 
@@ -329,6 +330,78 @@ public final class TreeChopper {
 			}
 		}
 		return best;
+	}
+
+	/**
+	 * When the player punches the stump (no axe) or shift-breaks it, convert the visible
+	 * progress into partial timbering instead of letting the placeholder vanish.
+	 *
+	 * @return true if we handled the break and cancelled vanilla logic.
+	 */
+	private static boolean handleManualStumpBreak(Level level, Player player, BlockPos stumpPos, BlockState stumpState) {
+		Session session = findSession(level, stumpPos);
+		if (session == null) {
+			// Rebuild a session if the server restarted or the cache was cleared.
+			session = buildSession(level, stumpPos.above(), stumpPos);
+			if (session == null) {
+				return false; // nothing to do; allow vanilla
+			}
+			SESSIONS.put(session.key(), session);
+		}
+
+		double progress = session.requiredChops == 0 ? 0.0 : (double) session.hits() / (double) session.requiredChops;
+		if (progress <= 0.0) {
+			// Fall back to the current stump stage if no hits were recorded on this session.
+			int stage = stumpState.getValue(ShrinkingStumpBlock.STAGE);
+			int stages = stumpState.getValue(ShrinkingStumpBlock.STAGES);
+			progress = stages > 0 ? (double) stage / (double) stages : 0.0;
+		}
+		progress = Mth.clamp(progress, 0.0, 1.0);
+
+		int targetLogs = computePartialFellTarget(session, progress);
+		if (targetLogs <= 0) {
+			level.setBlock(stumpPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+			SESSIONS.remove(session.key());
+			return true;
+		}
+
+		fellSomeLogs(level, player, session, targetLogs);
+		level.setBlock(stumpPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+		SESSIONS.remove(session.key());
+		return true;
+	}
+
+	private static int computePartialFellTarget(Session session, double progress) {
+		if (session.logsSize() == 0) return 0;
+		int target = (int) Math.floor(progress * session.logsSize());
+		if (progress > 0.0 && target == 0) {
+			target = 1; // at least one log if any progress is visible
+		}
+		return Math.min(target, session.logsSize());
+	}
+
+	private static int fellSomeLogs(Level level, Player player, Session session, int targetLogs) {
+		List<Entry<BlockPos, BlockState>> entries = new ArrayList<>(session.originals.entrySet());
+		entries.sort(Comparator
+			.<Entry<BlockPos, BlockState>>comparingInt(e -> e.getKey().getY())
+			.thenComparingInt(e -> e.getKey().getX())
+			.thenComparingInt(e -> e.getKey().getZ()));
+
+		int felled = 0;
+		for (Entry<BlockPos, BlockState> entry : entries) {
+			if (felled >= targetLogs) break;
+			BlockPos logPos = entry.getKey();
+			BlockState original = entry.getValue();
+
+			if (level.getBlockState(logPos).isAir()) {
+				continue; // already removed by something else
+			}
+
+			Block.dropResources(original, level, logPos, level.getBlockEntity(logPos), player, player.getMainHandItem());
+			level.setBlock(logPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+			felled++;
+		}
+		return felled;
 	}
 
 	private static final class Session {
