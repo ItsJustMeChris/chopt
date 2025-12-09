@@ -1,6 +1,6 @@
 # Chopt (Fabric)
 
-Timber-style tree felling for Minecraft 1.21.10 on Fabric. Trees take a few chops based on size, then the whole tree falls — while avoiding player-built structures.
+Timber-style tree felling for Minecraft 1.21.11-rc3 on Fabric. Trees take a few chops based on size, then the whole tree falls — while avoiding player-built structures.
 
 ## Features
 - Size-based chops: required swings scale with log count (capped at 32).
@@ -12,14 +12,14 @@ Timber-style tree felling for Minecraft 1.21.10 on Fabric. Trees take a few chop
 - Client-agnostic: no client-side setup required; works server-side.
 
 ## Requirements
-- Minecraft `1.21.10`
-- Fabric Loader `>=0.17.3`
-- Fabric API `0.138.3+1.21.10` (or newer for this MC version)
+- Minecraft `1.21.11-rc3`
+- Fabric Loader `>=0.18.1`
+- Fabric API `0.139.4+1.21.11` (or newer for this MC version)
 - Java 21
 
 ## Install (players)
-1. Install Fabric Loader for 1.21.10.
-2. Place `chopt-1.0.4.jar` (from releases/build) and Fabric API in your `mods/` folder.
+1. Install Fabric Loader for 1.21.11-rc3.
+2. Place `chopt-1.0.4.rc3.jar` (from releases/build) and Fabric API in your `mods/` folder.
 3. Launch the game; no config screen is needed.
 
 ## Usage

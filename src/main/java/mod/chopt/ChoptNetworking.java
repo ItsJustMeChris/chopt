@@ -7,7 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -38,7 +38,7 @@ public final class ChoptNetworking {
 	}
 
 	public record ShrinkingStumpDisplay(BlockPos pos, BlockState state) implements CustomPacketPayload {
-		public static final CustomPacketPayload.Type<ShrinkingStumpDisplay> ID = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Chopt.MOD_ID, "shrinking_stump_display"));
+		public static final CustomPacketPayload.Type<ShrinkingStumpDisplay> ID = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(Chopt.MOD_ID, "shrinking_stump_display"));
 		public static final StreamCodec<FriendlyByteBuf, ShrinkingStumpDisplay> CODEC = CustomPacketPayload.codec(ShrinkingStumpDisplay::write, ShrinkingStumpDisplay::new);
 
 		public ShrinkingStumpDisplay(FriendlyByteBuf buf) {
