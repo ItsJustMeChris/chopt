@@ -19,7 +19,7 @@ Timber-style tree felling for Minecraft 1.21.11-rc3 on Fabric. Trees take a few 
 
 ## Install (players)
 1. Install Fabric Loader for 1.21.11-rc3.
-2. Place `chopt-1.0.4.rc3.jar` (from releases/build) and Fabric API in your `mods/` folder.
+2. Place `chopt-*.jar` (from releases/build) and Fabric API in your `mods/` folder.
 3. Launch the game; no config screen is needed.
 
 ## Usage
