@@ -3,6 +3,7 @@
 	"package": "mod.chopt.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
+		"ClientLevelMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
