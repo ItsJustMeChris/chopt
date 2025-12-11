@@ -3,7 +3,7 @@
 	"id": "chopt",
 	"version": "${version}",
 	"name": "chopt",
-	"description": "Chopt turns tree felling into a fair, server-safe timber experience. Break a single log with an axe and, after a few size-scaled swings, the whole tree comes down. What it adds: timber-style felling that counts required swings by trunk size (capped at 32 swings / 256 logs). Leaves proximity prevents player-built log piles from falling. Balanced gameplay: every swing costs durability; timbering only breaks as many logs as your axe can afford. Works with Efficiency/Unbreaking as usual. Multiplayer first: chop progress is shared per tree so multiple players can finish it together. Controls: crouch (Shift) to do a normal single-block break; final drop uses the original unstripped log state. Compatibility: Fabric ${minecraft_version}, works with most modded tree shapes out of the box. Performance: chunk-safe scanning with hard caps to prevent runaway breaks. Requirements: Fabric Loader >=${loader_version}, Fabric API for ${minecraft_version}, Java 17+. How to use: install on the server and client, break any log with an axe, keep swinging until the quota is met, and the rest of the tree falls. If your axe breaks mid-timber, only the affordable logs drop—swap tools and finish the remainder.",
+	"description": "Chopt turns tree felling into a fair, server-safe timber experience. Break a single log with an axe and, after a few size-scaled swings, the whole tree comes down. What it adds: timber-style felling that counts required swings by trunk size (capped at 32 swings / 256 logs). Leaves proximity prevents player-built log piles from falling. Balanced gameplay: every swing costs durability; timbering only breaks as many logs as your axe can afford. Works with Efficiency/Unbreaking as usual. Multiplayer first: chop progress is shared per tree so multiple players can finish it together. Controls: crouch (Shift) to do a normal single-block break; final drop uses the original unstripped log state. Compatibility: Fabric ${minecraft_version}, works with most modded tree shapes out of the box. Performance: chunk-safe scanning with hard caps to prevent runaway breaks. Requirements: Fabric Loader >=${loader_version}, Fabric API for ${minecraft_version}, Java ${java_version}+. How to use: install on the server and client, break any log with an axe, keep swinging until the quota is met, and the rest of the tree falls. If your axe breaks mid-timber, only the affordable logs drop—swap tools and finish the remainder.",
 	"authors": [
 		"ItsJustMeChris"
 	],
@@ -32,7 +32,7 @@
 	"depends": {
 		"fabricloader": ">=${loader_version}",
 		"minecraft": "~${minecraft_version}",
-		"java": ">=17",
+		"java": ">=${java_version}",
 		"fabric-api": "*"
 	}
 }

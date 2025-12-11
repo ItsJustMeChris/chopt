@@ -35,6 +35,19 @@ def mcCompatTag = "v${project.minecraft_version}"
 def mainCompatDir = file("src/main/java_${mcCompatTag}")
 def clientCompatDir = file("src/client/java_${mcCompatTag}")
 
+// Decide Java target based on Minecraft version:
+// - MC 1.21.x and newer require Java 21
+// - MC 1.20.x and below stay on Java 17
+def parseMinor = { String mcVer ->
+	def parts = mcVer.tokenize('.')
+	if (parts.size() < 2) return 0
+	def minorRaw = parts[1].replaceAll(/[^0-9].*/, "")
+	return minorRaw.isInteger() ? minorRaw.toInteger() : 0
+}
+def mcMinor = parseMinor(project.minecraft_version)
+def javaTarget = mcMinor >= 21 ? 21 : 17
+def mixinCompat = javaTarget >= 21 ? "JAVA_21" : "JAVA_17"
+
 sourceSets {
 	main {
 		if (mainCompatDir.exists()) {
@@ -59,24 +72,42 @@ dependencies {
 	
 }
 
-processResources {
-	inputs.properties(
+def expandResources = { task ->
+	task.inputs.properties(
 		version: project.version,
 		minecraft_version: project.minecraft_version,
-		loader_version: project.loader_version
+		loader_version: project.loader_version,
+		java_version: javaTarget,
+		mixin_compat: mixinCompat
 	)
 
-	filesMatching("fabric.mod.json") {
+	task.filesMatching("fabric.mod.json") {
 		expand(
 			version: inputs.properties.version,
 			minecraft_version: project.minecraft_version,
-			loader_version: project.loader_version
+			loader_version: project.loader_version,
+			java_version: javaTarget
+		)
+	}
+
+	task.filesMatching("chopt.mixins.json") {
+		expand(
+			mixin_compat: mixinCompat
+		)
+	}
+
+	task.filesMatching("chopt.client.mixins.json") {
+		expand(
+			mixin_compat: mixinCompat
 		)
 	}
 }
 
+tasks.named("processResources").configure(expandResources)
+tasks.named("processClientResources").configure(expandResources)
+
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 17
+	it.options.release = javaTarget
 }
 
 java {
@@ -85,12 +116,11 @@ java {
 	// If you remove this line, sources will not be generated.
 	withSourcesJar()
 
-	// Target Minecraft 1.20.1's baseline (Java 17)
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		languageVersion = JavaLanguageVersion.of(javaTarget)
 	}
-	sourceCompatibility = JavaVersion.VERSION_17
-	targetCompatibility = JavaVersion.VERSION_17
+	sourceCompatibility = JavaVersion.toVersion(javaTarget)
+	targetCompatibility = JavaVersion.toVersion(javaTarget)
 }
 
 jar {

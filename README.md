@@ -15,7 +15,7 @@ Timber-style tree felling for Minecraft 1.21.11-rc3 on Fabric. Trees take a few 
 - Minecraft `1.21.11-rc3`
 - Fabric Loader `>=0.18.1`
 - Fabric API `0.139.4+1.21.11` (or newer for this MC version)
-- Java 17
+- Java 21 (use Java 17 when building the 1.20.x branch)
 
 ## Install (players)
 1. Install Fabric Loader for 1.21.11-rc3.
