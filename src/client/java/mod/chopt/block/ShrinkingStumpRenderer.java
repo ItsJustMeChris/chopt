@@ -2,6 +2,7 @@ package mod.chopt.block;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.SheetedDecalTextureGenerator;
+import mod.chopt.compat.ClientRenderCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -9,10 +10,8 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
-import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.state.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.resources.model.ModelBakery;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
@@ -52,7 +51,7 @@ public class ShrinkingStumpRenderer implements BlockEntityRenderer<ShrinkingStum
 
 		if (state.breakProgress != null && state.level != null) {
 			ModelFeatureRenderer.CrumblingOverlay breakOverlay = state.breakProgress;
-			RenderType destroyType = ModelBakery.DESTROY_TYPES.get(breakOverlay.progress());
+			var destroyType = ClientRenderCompat.destroyType(breakOverlay.progress());
 			PoseStack overlayStack = new PoseStack();
 			overlayStack.last().set(pose.last()); // match scaled stump transform
 			SheetedDecalTextureGenerator decalBuffer = new SheetedDecalTextureGenerator(

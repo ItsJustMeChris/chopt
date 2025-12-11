@@ -6,8 +6,8 @@ import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityT
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import mod.chopt.compat.Ids;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -19,7 +19,7 @@ import net.minecraft.world.level.material.PushReaction;
  */
 public final class ChoptBlocks {
 	public static final String STUMP_NAME = "shrinking_stump";
-	private static final ResourceKey<Block> STUMP_KEY = ResourceKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Chopt.MOD_ID, STUMP_NAME));
+	private static final ResourceKey<Block> STUMP_KEY = ResourceKey.create(Registries.BLOCK, Ids.id(STUMP_NAME));
 
 	public static final ShrinkingStumpBlock SHRINKING_STUMP = new ShrinkingStumpBlock(
 		BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
@@ -45,12 +45,10 @@ public final class ChoptBlocks {
 	}
 
 	private static void registerBlock(String path, Block block) {
-		Identifier id = Identifier.fromNamespaceAndPath(Chopt.MOD_ID, path);
-		Registry.register(BuiltInRegistries.BLOCK, id, block);
+		Registry.register(BuiltInRegistries.BLOCK, Ids.blockId(path), block);
 	}
 
 	private static <T extends BlockEntityType<?>> void registerBlockEntity(String path, T type) {
-		Identifier id = Identifier.fromNamespaceAndPath(Chopt.MOD_ID, path);
-		Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, id, type);
+		Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, Ids.blockEntityId(path), type);
 	}
 }

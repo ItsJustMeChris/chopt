@@ -1,7 +1,6 @@
 package mod.chopt.mixin.client;
 
-import mod.chopt.ChoptBlocks;
-import mod.chopt.block.ShrinkingStumpBlockEntity;
+import mod.chopt.compat.StumpParticles;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -31,11 +30,6 @@ public abstract class ClientLevelMixin {
 	}
 
 	private static BlockState chopt$swapState(ClientLevel level, BlockState original, BlockPos pos) {
-		if (original.is(ChoptBlocks.SHRINKING_STUMP)) {
-			if (level.getBlockEntity(pos) instanceof ShrinkingStumpBlockEntity stump && stump.getDisplayState() != null) {
-				return stump.getDisplayState();
-			}
-		}
-		return original;
+		return StumpParticles.swap(level, pos, original);
 	}
 }

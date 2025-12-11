@@ -30,6 +30,24 @@ loom {
 
 }
 
+// Inject version-specific compat source roots (e.g., src/main/java_v1.21.10)
+def mcCompatTag = "v${project.minecraft_version}"
+def mainCompatDir = file("src/main/java_${mcCompatTag}")
+def clientCompatDir = file("src/client/java_${mcCompatTag}")
+
+sourceSets {
+	main {
+		if (mainCompatDir.exists()) {
+			java.srcDir(mainCompatDir)
+		}
+	}
+	client {
+		if (clientCompatDir.exists()) {
+			java.srcDir(clientCompatDir)
+		}
+	}
+}
+
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
@@ -86,5 +104,35 @@ publishing {
 		// Notice: This block does NOT have the same function as the block in the top level.
 		// The repositories here will be used for publishing your artifact, not for
 		// retrieving dependencies.
+	}
+}
+
+// Maintenance helpers (keep in one place to make retargeting MC versions easier)
+tasks.register("purgeLoomCache", Delete) {
+	group = "maintenance"
+	description = "Remove Loom/Minecraft caches so mappings and jars are freshly pulled next build."
+	delete(file(".gradle/loom-cache"))
+}
+
+tasks.register("purgeRuns", Delete) {
+	group = "maintenance"
+	description = "Delete run/ client/server working directories."
+	delete(file("run"))
+}
+
+tasks.register("purgeBin", Delete) {
+	group = "maintenance"
+	description = "Delete local bin/ scripts/artifacts (keeps wrapper)."
+	delete(file("bin"))
+}
+
+tasks.register("deepClean") {
+	group = "maintenance"
+	description = "Stop daemons, clean build, and purge Loom caches/run/bin."
+	dependsOn("clean", "purgeLoomCache", "purgeRuns", "purgeBin")
+	doLast {
+		// stop running daemons to avoid stale state between version bumps
+		gradle.startParameter.taskNames = []
+		println("Hint: run './gradlew --stop' to end daemons if you see stale caches.")
 	}
 }
