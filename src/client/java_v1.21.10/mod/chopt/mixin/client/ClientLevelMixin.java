@@ -9,18 +9,19 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
-/**
- * Make stump hit/break particles use the per-tree display state instead of the
- * placeholder model texture.
- */
 @Mixin(ClientLevel.class)
 public abstract class ClientLevelMixin {
 	@ModifyVariable(method = "addDestroyBlockEffect", at = @At("HEAD"), argsOnly = true)
 	private BlockState chopt$swapDestroyState(BlockState state, BlockPos pos) {
-		return chopt$swapState((ClientLevel)(Object)this, state, pos);
+		return StumpParticles.swap((ClientLevel)(Object)this, pos, state);
 	}
 
-	private static BlockState chopt$swapState(ClientLevel level, BlockState original, BlockPos pos) {
-		return StumpParticles.swap(level, pos, original);
+	@ModifyVariable(
+		method = "addBreakingBlockEffect",
+		at = @At(value = "STORE"),
+		ordinal = 0
+	)
+	private BlockState chopt$swapHitState(BlockState state, BlockPos pos, Direction side) {
+		return StumpParticles.swap((ClientLevel)(Object)this, pos, state);
 	}
 }

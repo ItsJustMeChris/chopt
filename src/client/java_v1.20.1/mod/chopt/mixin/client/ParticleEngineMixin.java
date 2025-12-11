@@ -13,17 +13,17 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 /**
- * Swap stump display state into block hit (crack) particles.
+ * 1.20.1 lacks addBreakingBlockEffect; hook particle crack instead.
  */
 @Mixin(ParticleEngine.class)
 public abstract class ParticleEngineMixin {
-	@Shadow @Final private ClientLevel level;
+	@Shadow @Final protected ClientLevel level;
 
 	@ModifyVariable(
 		method = "crack",
 		at = @At(value = "STORE"),
 		ordinal = 0,
-		require = 0, // optional: if method signature changes, skip gracefully
+		require = 0,
 		expect = 0
 	)
 	private BlockState chopt$swapCrackState(BlockState original, BlockPos pos, Direction side) {
