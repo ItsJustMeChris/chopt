@@ -20,15 +20,6 @@ public abstract class ClientLevelMixin {
 		return chopt$swapState((ClientLevel)(Object)this, state, pos);
 	}
 
-	@ModifyVariable(
-		method = "addBreakingBlockEffect",
-		at = @At(value = "STORE"),
-		ordinal = 0
-	)
-	private BlockState chopt$swapHitState(BlockState state, BlockPos pos, Direction side) {
-		return chopt$swapState((ClientLevel)(Object)this, state, pos);
-	}
-
 	private static BlockState chopt$swapState(ClientLevel level, BlockState original, BlockPos pos) {
 		return StumpParticles.swap(level, pos, original);
 	}

@@ -6,10 +6,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
-/**
- * Version-stable helper for selecting the stump's display state for particles.
- * Called from version-specific mixins.
- */
 public final class StumpParticles {
 	private StumpParticles() {}
 
