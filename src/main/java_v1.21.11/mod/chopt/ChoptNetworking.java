@@ -14,7 +14,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.server.level.ServerLevel;
 
 /**
- * Networking helpers for debug inspect overlay.
+ * Networking helpers for shrinking stump display sync.
  */
 public final class ChoptNetworking {
 	private static boolean payloadsRegistered = false;

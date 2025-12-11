@@ -11,9 +11,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import mod.chopt.block.ShrinkingStumpBlockEntity;
 import mod.chopt.block.ShrinkingStumpRenderer;
 
-@SuppressWarnings("deprecation") // HudRenderCallback remains the simplest hook for a tiny debug overlay
 public class ChoptClient implements ClientModInitializer {
-	private final java.util.Map<BlockPos, net.minecraft.world.level.block.state.BlockState> pendingStumpDisplays = new java.util.HashMap<>();
+	private final java.util.Map<BlockPos, BlockState> pendingStumpDisplays = new java.util.HashMap<>();
 
 	@Override
 	public void onInitializeClient() {

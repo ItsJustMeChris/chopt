@@ -44,27 +44,6 @@ public final class TreeChopper {
 		PlayerBlockBreakEvents.AFTER.register(TreeChopper::afterBreak);
 	}
 
-	public static Inspection inspect(Level level, BlockPos pos) {
-		BlockState state = level.getBlockState(pos);
-		boolean isStump = state.is(ChoptBlocks.SHRINKING_STUMP);
-		if (!state.is(BlockTags.LOGS) && !isStump) {
-			return Inspection.notTree(pos);
-		}
-
-		Session session = findSession(level, pos);
-		if (session != null) {
-			return new Inspection(true, session.logsSize(), session.requiredChops, session.hits(), pos);
-		}
-
-		BlockPos scanOrigin = isStump ? pos.above() : pos;
-		Map<BlockPos, BlockState> originals = scanLogs(level, scanOrigin);
-		if (originals.isEmpty() || !hasLeavesNearby(level, originals)) {
-			return Inspection.notTree(pos);
-		}
-		int requiredChops = computeRequiredChops(originals.size());
-		return new Inspection(true, originals.size(), requiredChops, 0, pos);
-	}
-
 	private static boolean beforeBreak(Level level, Player player, BlockPos pos, BlockState state, /* nullable */ Object blockEntity) {
 		if (level.isClientSide()) {
 			return true;
@@ -456,12 +435,6 @@ public final class TreeChopper {
 	}
 
 	private record SessionKey(ResourceKey<Level> dimension, BlockPos base) {}
-
-	public record Inspection(boolean isTree, int logs, int requiredChops, int hits, BlockPos inspectedPos) {
-		public static Inspection notTree(BlockPos pos) {
-			return new Inspection(false, 0, 0, 0, pos);
-		}
-	}
 
 	private static boolean hasLeavesNearby(Level level, Map<BlockPos, BlockState> originals) {
 		for (Map.Entry<BlockPos, BlockState> entry : originals.entrySet()) {

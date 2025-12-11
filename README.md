@@ -38,7 +38,6 @@ Outputs are under `build/libs/` (`-dev` jars are for development, the remapped j
 ## Development notes
 - Uses official Mojang mappings; see `AGENTS.md` for cache and inspection tips.
 - Tree scanning lives in `src/main/java/mod/chopt/TreeChopper.java`.
-- Client entrypoint (`ChoptClient`) adds a lightweight debug overlay: hover a log to see whether it's treated as a tree and the current chop progress.
 
 ## Known limits
 - Hard cap of 256 logs per tree scan.
