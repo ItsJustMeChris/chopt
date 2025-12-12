@@ -178,3 +178,36 @@ tasks.register("deepClean") {
 		println("Hint: run './gradlew --stop' to end daemons if you see stale caches.")
 	}
 }
+
+// --- Version profile helpers -------------------------------------------------
+def loadProfile = { String profileName ->
+	def profileFile = file("gradle/profiles/${profileName}.properties")
+	if (!profileFile.exists()) {
+		throw new GradleException("Profile '${profileName}' not found at ${profileFile}")
+	}
+	Properties props = new Properties()
+	file("gradle.properties").withInputStream { props.load(it) }
+	Properties overrideProps = new Properties()
+	profileFile.withInputStream { overrideProps.load(it) }
+	overrideProps.each { k, v -> props.setProperty(k as String, v as String) }
+	props.store(new FileOutputStream(file("gradle.properties")), null)
+	println("Applied profile '${profileName}' to gradle.properties")
+}
+
+tasks.register("useMc12111") {
+	group = "maintenance"
+	description = "Apply gradle/profiles/1.21.11.properties to gradle.properties"
+	doLast { loadProfile("1.21.11") }
+}
+
+tasks.register("useMc12110") {
+	group = "maintenance"
+	description = "Apply gradle/profiles/1.21.10.properties to gradle.properties"
+	doLast { loadProfile("1.21.10") }
+}
+
+tasks.register("useMc1201") {
+	group = "maintenance"
+	description = "Apply gradle/profiles/1.20.1.properties to gradle.properties"
+	doLast { loadProfile("1.20.1") }
+}
