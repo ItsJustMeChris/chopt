@@ -1,6 +1,34 @@
 plugins {
-	id 'fabric-loom' version "${loom_version}"
+	id 'fabric-loom' version "${loom_version}" apply false
+	id 'net.fabricmc.fabric-loom' version "${loom_version}" apply false
 	id 'maven-publish'
+}
+
+def minecraftVersion = project.minecraft_version.toString()
+def autoDeobfuscated = minecraftVersion.contains("_unobfuscated") || !minecraftVersion.startsWith("1.")
+def loomDisableObfuscationProp = (project.findProperty("fabric.loom.disableObfuscation") ?: "false").toString().toBoolean()
+def minecraftDeobfuscated = autoDeobfuscated
+	|| loomDisableObfuscationProp
+	|| (project.findProperty("minecraft_deobfuscated") ?: "false").toString().toBoolean()
+
+def computeMinecraftDependency = { String mcVer ->
+	if (mcVer == null || mcVer.isBlank()) {
+		return "*"
+	}
+	String normalized = mcVer.replaceFirst(/_unobfuscated$/, "")
+	def snapshotMatcher = (normalized =~ /^(\d+)\.(\d+)-snapshot-(\d+)$/)
+	if (snapshotMatcher.matches()) {
+		normalized = "${snapshotMatcher[0][1]}.${snapshotMatcher[0][2]}-alpha.${snapshotMatcher[0][3]}"
+	}
+	return "~${normalized}"
+}
+def minecraftDependency = computeMinecraftDependency(minecraftVersion)
+
+if (minecraftDeobfuscated) {
+	// Matches Fabric's 26.1 snapshot template behavior (no remap / unobfuscated environment).
+	apply plugin: 'net.fabricmc.fabric-loom'
+} else {
+	apply plugin: 'fabric-loom'
 }
 
 version = "${project.mod_version}+mc${project.minecraft_version}"
@@ -38,15 +66,23 @@ def clientCompatDir = file("src/client/java_${mcCompatTag}")
 // Decide Java target based on Minecraft version:
 // - MC 1.21.x and newer require Java 21
 // - MC 1.20.x and below stay on Java 17
+// - MC 26.1-snapshot-* is deobfuscated and currently targets Java 25
+def parseMajor = { String mcVer ->
+	def parts = mcVer.tokenize('.')
+	if (parts.isEmpty()) return 0
+	def majorRaw = parts[0].replaceAll(/[^0-9].*/, "")
+	return majorRaw.isInteger() ? majorRaw.toInteger() : 0
+}
 def parseMinor = { String mcVer ->
 	def parts = mcVer.tokenize('.')
 	if (parts.size() < 2) return 0
 	def minorRaw = parts[1].replaceAll(/[^0-9].*/, "")
 	return minorRaw.isInteger() ? minorRaw.toInteger() : 0
 }
+def mcMajor = parseMajor(minecraftVersion)
 def mcMinor = parseMinor(project.minecraft_version)
-def javaTarget = mcMinor >= 21 ? 21 : 17
-def mixinCompat = javaTarget >= 21 ? "JAVA_21" : "JAVA_17"
+def javaTarget = mcMajor >= 26 ? 25 : (mcMinor >= 21 ? 21 : 17)
+def mixinCompat = javaTarget >= 25 ? "JAVA_25" : (javaTarget >= 21 ? "JAVA_21" : "JAVA_17")
 
 sourceSets {
 	main {
@@ -64,11 +100,18 @@ sourceSets {
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings loom.officialMojangMappings()
-	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-	// Fabric API. This is technically optional, but you probably want it anyway.
-	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	if (!minecraftDeobfuscated) {
+		mappings loom.officialMojangMappings()
+		modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+		// Fabric API. This is technically optional, but you probably want it anyway.
+		modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	} else {
+		// 26.1-snapshot-* ships deobfuscated (no mappings), so depend directly like the Fabric template.
+		implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+		implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	}
 	
 }
 
@@ -76,6 +119,7 @@ def expandResources = { task ->
 	task.inputs.properties(
 		version: project.version,
 		minecraft_version: project.minecraft_version,
+		minecraft_dependency: minecraftDependency,
 		loader_version: project.loader_version,
 		java_version: javaTarget,
 		mixin_compat: mixinCompat
@@ -85,6 +129,7 @@ def expandResources = { task ->
 		expand(
 			version: inputs.properties.version,
 			minecraft_version: project.minecraft_version,
+			minecraft_dependency: inputs.properties.minecraft_dependency,
 			loader_version: project.loader_version,
 			java_version: javaTarget
 		)
@@ -168,6 +213,18 @@ tasks.register("purgeBin", Delete) {
 	delete(file("bin"))
 }
 
+tasks.register("purgeUserFabricLoomCacheForMc", Delete) {
+	group = "maintenance"
+	description = "Delete Gradle user-home fabric-loom cache for the current minecraft_version (useful when split/lock issues occur)."
+	delete(new File(gradle.gradleUserHomeDir, "caches/fabric-loom/${project.minecraft_version}"))
+}
+
+tasks.register("purgeUserFabricLoomCacheAll", Delete) {
+	group = "maintenance"
+	description = "Delete the entire Gradle user-home fabric-loom cache (may affect other projects)."
+	delete(new File(gradle.gradleUserHomeDir, "caches/fabric-loom"))
+}
+
 tasks.register("deepClean") {
 	group = "maintenance"
 	description = "Stop daemons, clean build, and purge Loom caches/run/bin."
@@ -210,4 +267,10 @@ tasks.register("useMc1201") {
 	group = "maintenance"
 	description = "Apply gradle/profiles/1.20.1.properties to gradle.properties"
 	doLast { loadProfile("1.20.1") }
+}
+
+tasks.register("useMc261Snapshot1") {
+	group = "maintenance"
+	description = "Apply gradle/profiles/26.1-snapshot-1.properties to gradle.properties"
+	doLast { loadProfile("26.1-snapshot-1") }
 }

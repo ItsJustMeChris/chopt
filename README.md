@@ -1,6 +1,6 @@
 # Chopt (Fabric)
 
-Timber-style tree felling for Minecraft 1.21.11-rc3 on Fabric. Trees take a few chops based on size, then the whole tree falls — while avoiding player-built structures.
+Timber-style tree felling for Minecraft 1.21.11 on Fabric. Trees take a few chops based on size, then the whole tree falls — while avoiding player-built structures.
 
 ## Features
 - Size-based chops: required swings scale with log count (capped at 32).
@@ -12,13 +12,13 @@ Timber-style tree felling for Minecraft 1.21.11-rc3 on Fabric. Trees take a few 
 - Client-agnostic: no client-side setup required; works server-side.
 
 ## Requirements
-- Minecraft `1.21.11-rc3`
-- Fabric Loader `>=0.18.1`
-- Fabric API `0.139.4+1.21.11` (or newer for this MC version)
+- Minecraft `1.21.11`
+- Fabric Loader `>=0.18.2`
+- Fabric API `0.139.5+1.21.11` (or newer for this MC version)
 - Java 21 (use Java 17 when building the 1.20.x branch)
 
 ## Install (players)
-1. Install Fabric Loader for 1.21.11-rc3.
+1. Install Fabric Loader for 1.21.11.
 2. Place `chopt-*.jar` (from releases/build) and Fabric API in your `mods/` folder.
 3. Launch the game; no config screen is needed.
 
@@ -35,9 +35,16 @@ Timber-style tree felling for Minecraft 1.21.11-rc3 on Fabric. Trees take a few 
 ```
 Outputs are under `build/libs/` (`-dev` jars are for development, the remapped jar is for players/servers).
 
+To switch Minecraft targets, use the built-in profiles:
+```sh
+./gradlew useMc12111
+./gradlew useMc261Snapshot1
+```
+`26.1-snapshot-1` is deobfuscated (no mappings) and targets Java 25.
+
 ## Development notes
 - Uses official Mojang mappings; see `AGENTS.md` for cache and inspection tips.
-- Tree scanning lives in `src/main/java/mod/chopt/TreeChopper.java`.
+- Tree scanning lives in `src/main/java_v*/mod/chopt/TreeChopper.java`.
 
 ## Known limits
 - Hard cap of 256 logs per tree scan.
