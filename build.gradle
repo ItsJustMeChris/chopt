@@ -244,6 +244,9 @@ def loadProfile = { String profileName ->
 	}
 	Properties props = new Properties()
 	file("gradle.properties").withInputStream { props.load(it) }
+	// Reset version-environment toggles so switching profiles doesn't leave stale state behind.
+	props.remove("minecraft_deobfuscated")
+	props.remove("fabric.loom.disableObfuscation")
 	Properties overrideProps = new Properties()
 	profileFile.withInputStream { overrideProps.load(it) }
 	overrideProps.each { k, v -> props.setProperty(k as String, v as String) }
