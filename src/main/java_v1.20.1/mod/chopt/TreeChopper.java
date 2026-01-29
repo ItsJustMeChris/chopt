@@ -15,7 +15,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.sounds.SoundSource;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -91,6 +93,16 @@ public final class TreeChopper {
 
 		session.recordAttempt();
 		updateStumpVisual(level, pos, session);
+
+		// Play chop sound for all nearby players (use stripped log sound to match visual)
+		BlockState originalForSound = session.anyOriginal();
+		if (originalForSound != null) {
+			BlockState strippedForSound = StripHelper.getStripped(originalForSound).orElse(originalForSound);
+			SoundType soundType = strippedForSound.getSoundType();
+			level.playSound(null, pos, soundType.getHitSound(), SoundSource.BLOCKS,
+				(soundType.getVolume() + 1.0F) / 2.0F, soundType.getPitch() * 0.8F);
+		}
+
 		if (brokeAxe) {
 			// Axe broke from this swing—visuals are already updated, so just cancel
 			// the break to keep the stump block/entity intact for the next tool.
@@ -106,6 +118,8 @@ public final class TreeChopper {
 			// Use the stored original state so drops aren't stripped
 			Block.dropResources(original, level, pos, level.getBlockEntity(pos), player, player.getMainHandItem());
 		}
+		// Play break sound/particles for all nearby players
+		level.levelEvent(2001, pos, Block.getId(original != null ? original : level.getBlockState(pos)));
 		level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
 
 		PROCESSING.set(true);
@@ -265,6 +279,8 @@ public final class TreeChopper {
 
 			BlockState original = entry.getValue();
 			Block.dropResources(original, level, pos, level.getBlockEntity(pos), player, player.getMainHandItem());
+			// Play break sound/particles for all nearby players
+			level.levelEvent(2001, pos, Block.getId(original));
 			level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
 			felled++;
 		}
@@ -377,6 +393,8 @@ public final class TreeChopper {
 			}
 
 			Block.dropResources(original, level, logPos, level.getBlockEntity(logPos), player, player.getMainHandItem());
+			// Play break sound/particles for all nearby players
+			level.levelEvent(2001, logPos, Block.getId(original));
 			level.setBlock(logPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
 			felled++;
 		}
