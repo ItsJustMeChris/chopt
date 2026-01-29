@@ -88,6 +88,14 @@ public final class TreeChopper {
 			SESSIONS.put(session.key(), session);
 		}
 
+		// Prune any logs that were manually broken and recalculate requirements
+		if (!session.pruneAndRecalculate(level)) {
+			// All logs gone, just remove the stump
+			level.setBlock(session.key().base(), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+			SESSIONS.remove(session.key());
+			return false;
+		}
+
 		applyDurabilityLoss(player, held, 1); // pay a swing immediately so partial attempts still cost durability
 		boolean brokeAxe = held.isEmpty();
 
@@ -267,6 +275,11 @@ public final class TreeChopper {
 			BlockPos pos = entry.getKey();
 			if (pos.equals(alreadyBroken)) continue;
 
+			// Skip if already removed (prevents dupe if logs were manually broken)
+			if (!level.getBlockState(pos).is(BlockTags.LOGS)) {
+				continue;
+			}
+
 			if (!player.isCreative()) {
 				if (tool.isEmpty()) {
 					break;
@@ -404,8 +417,8 @@ public final class TreeChopper {
 	private static final class Session {
 		private final SessionKey key;
 		private final Map<BlockPos, BlockState> originals;
-		private final int requiredChops;
-		private final int stumpStages;
+		private int requiredChops;
+		private int stumpStages;
 		private int hits = 0;
 
 		Session(SessionKey key, Map<BlockPos, BlockState> originals, int requiredChops, int stumpStages) {
@@ -449,6 +462,30 @@ public final class TreeChopper {
 
 		int stumpStages() {
 			return stumpStages;
+		}
+
+		/**
+		 * Remove logs that were manually broken and recalculate requirements.
+		 * @return true if session still has logs to fell, false if empty
+		 */
+		boolean pruneAndRecalculate(Level level) {
+			// Remove positions that are no longer logs (keep stump position - it's now a stump block)
+			originals.entrySet().removeIf(entry -> {
+				BlockPos pos = entry.getKey();
+				if (pos.equals(key.base())) {
+					return false; // Keep stump position
+				}
+				return !level.getBlockState(pos).is(BlockTags.LOGS);
+			});
+
+			if (originals.isEmpty()) {
+				return false;
+			}
+
+			// Recalculate based on remaining logs
+			requiredChops = TreeChopper.computeRequiredChops(originals.size());
+			stumpStages = TreeChopper.computeStumpStages(originals.size());
+			return true;
 		}
 	}
 
