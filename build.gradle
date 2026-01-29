@@ -266,6 +266,12 @@ tasks.register("useMc12110") {
 	doLast { loadProfile("1.21.10") }
 }
 
+tasks.register("useMc1218") {
+	group = "maintenance"
+	description = "Apply gradle/profiles/1.21.8.properties to gradle.properties"
+	doLast { loadProfile("1.21.8") }
+}
+
 tasks.register("useMc1201") {
 	group = "maintenance"
 	description = "Apply gradle/profiles/1.20.1.properties to gradle.properties"
