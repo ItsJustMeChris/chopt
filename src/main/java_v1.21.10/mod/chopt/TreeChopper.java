@@ -41,6 +41,10 @@ public final class TreeChopper {
 
 	private TreeChopper() {}
 
+	private static boolean isAxe(ItemStack stack) {
+		return stack.is(ItemTags.AXES) || stack.getItem() instanceof AxeItem;
+	}
+
 	public static void register() {
 		PlayerBlockBreakEvents.BEFORE.register(TreeChopper::beforeBreak);
 		PlayerBlockBreakEvents.AFTER.register(TreeChopper::afterBreak);
@@ -66,7 +70,7 @@ public final class TreeChopper {
 		}
 
 		ItemStack held = player.getMainHandItem();
-		if (player.isShiftKeyDown() || !held.is(ItemTags.AXES)) {
+		if (player.isShiftKeyDown() || !isAxe(held)) {
 			if (isStump && handleManualStumpBreak(level, player, pos, state)) {
 				return false; // converted into partial timbering
 			}
