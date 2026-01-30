@@ -147,6 +147,11 @@ public final class TreeChopper {
 		// Remove the stump block if it still exists (player completed session by hitting a different log)
 		BlockPos stumpPos = session.key().base();
 		if (level.getBlockState(stumpPos).is(ChoptBlocks.SHRINKING_STUMP)) {
+			// Drop the original log that was replaced by the stump
+			BlockState stumpOriginal = session.getOriginal(stumpPos);
+			if (stumpOriginal != null) {
+				Block.dropResources(stumpOriginal, level, stumpPos, null, player, held);
+			}
 			level.setBlock(stumpPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
 		}
 		SESSIONS.remove(session.key());
