@@ -25,7 +25,7 @@ def computeMinecraftDependency = { String mcVer ->
 def minecraftDependency = computeMinecraftDependency(minecraftVersion)
 
 if (minecraftDeobfuscated) {
-	// Matches Fabric's 26.1 snapshot template behavior (no remap / unobfuscated environment).
+	// Matches Fabric's 26.1.x template behavior (no remap / unobfuscated environment).
 	apply plugin: 'net.fabricmc.fabric-loom'
 } else {
 	apply plugin: 'fabric-loom'
@@ -44,6 +44,13 @@ repositories {
 	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
 	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
 	// for more information about repositories.
+
+	// Jade is published to Modrinth's maven; scoped so nothing else is resolved through it.
+	maven {
+		name = 'Modrinth'
+		url = 'https://api.modrinth.com/maven'
+		content { includeGroup 'maven.modrinth' }
+	}
 }
 
 loom {
@@ -66,7 +73,7 @@ def clientCompatDir = file("src/client/java_${mcCompatTag}")
 // Decide Java target based on Minecraft version:
 // - MC 1.21.x and newer require Java 21
 // - MC 1.20.x and below stay on Java 17
-// - MC 26.1-snapshot-* is deobfuscated and currently targets Java 25
+// - MC 26.1.x is deobfuscated and currently targets Java 25
 def parseMajor = { String mcVer ->
 	def parts = mcVer.tokenize('.')
 	if (parts.isEmpty()) return 0
@@ -108,9 +115,25 @@ dependencies {
 		// Fabric API. This is technically optional, but you probably want it anyway.
 		modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 	} else {
-		// 26.1-snapshot-* ships deobfuscated (no mappings), so depend directly like the Fabric template.
+		// 26.1.x ships deobfuscated (no mappings), so depend directly like the Fabric template.
 		implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 		implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	}
+
+	// Jade is an optional integration: compile against it, never ship or require it.
+	// Profiles without a jade_version simply build without the compat classes wired up.
+	def jadeVersion = (project.findProperty("jade_version") ?: "").toString().trim()
+	if (!jadeVersion.isEmpty()) {
+		def jadeDep = "maven.modrinth:jade:${jadeVersion}"
+		// Deobfuscated targets (26.1+) skip Loom remapping entirely, matching the Fabric template.
+		def mainConf = minecraftDeobfuscated ? "compileOnly" : "modCompileOnly"
+		def clientConf = minecraftDeobfuscated ? "clientCompileOnly" : "modClientCompileOnly"
+		dependencies.add(mainConf, jadeDep)
+		if (configurations.findByName(clientConf) != null) {
+			dependencies.add(clientConf, jadeDep)
+		} else {
+			throw new GradleException("Expected configuration '${clientConf}' from splitEnvironmentSourceSets()")
+		}
 	}
 	
 }
@@ -247,6 +270,9 @@ def loadProfile = { String profileName ->
 	// Reset version-environment toggles so switching profiles doesn't leave stale state behind.
 	props.remove("minecraft_deobfuscated")
 	props.remove("fabric.loom.disableObfuscation")
+	// Only the profiles that need a pinned Gradle JVM (e.g. 26.1 -> Java 25) should set one.
+	props.remove("org.gradle.java.home")
+	props.remove("jade_version")
 	Properties overrideProps = new Properties()
 	profileFile.withInputStream { overrideProps.load(it) }
 	overrideProps.each { k, v -> props.setProperty(k as String, v as String) }
@@ -278,8 +304,8 @@ tasks.register("useMc1201") {
 	doLast { loadProfile("1.20.1") }
 }
 
-tasks.register("useMc261Snapshot1") {
+tasks.register("useMc2611") {
 	group = "maintenance"
-	description = "Apply gradle/profiles/26.1-snapshot-1.properties to gradle.properties"
-	doLast { loadProfile("26.1-snapshot-1") }
+	description = "Apply gradle/profiles/26.1.1.properties to gradle.properties"
+	doLast { loadProfile("26.1.1") }
 }

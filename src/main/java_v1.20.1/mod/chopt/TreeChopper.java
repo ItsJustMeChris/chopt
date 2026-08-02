@@ -41,6 +41,32 @@ public final class TreeChopper {
 
 	private TreeChopper() {}
 
+	/**
+	 * Read-only snapshot of an active tree-felling session, exposed for external
+	 * integrations (Jade). Kept deliberately small so it can be handed straight to a
+	 * tooltip provider without leaking the mutable Session.
+	 */
+	public record Progress(int hits, int requiredChops, int logCount, BlockState original) {
+		public float fraction() {
+			return requiredChops <= 0 ? 0.0f : Mth.clamp((float) hits / (float) requiredChops, 0.0f, 1.0f);
+		}
+	}
+
+	/**
+	 * Look up the felling session covering {@code pos}.
+	 * Server-side only; returns null when no session is tracking that position.
+	 */
+	public static Progress progressAt(Level level, BlockPos pos) {
+		if (level == null || pos == null || level.isClientSide()) return null;
+		Session session = findSession(level, pos);
+		if (session == null) return null;
+		BlockState original = session.getOriginal(pos);
+		if (original == null) {
+			original = session.anyOriginal();
+		}
+		return new Progress(session.hits(), session.requiredChops, session.originals.size(), original);
+	}
+
 	private static boolean isAxe(ItemStack stack) {
 		return stack.is(ItemTags.AXES) || stack.getItem() instanceof AxeItem;
 	}

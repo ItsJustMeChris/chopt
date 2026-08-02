@@ -23,7 +23,7 @@ public final class ChoptNetworking {
 	public static void registerPayloads() {
 		if (payloadsRegistered) return;
 		payloadsRegistered = true;
-		PayloadTypeRegistry.playS2C().register(ShrinkingStumpDisplay.ID, ShrinkingStumpDisplay.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(ShrinkingStumpDisplay.ID, ShrinkingStumpDisplay.CODEC);
 	}
 
 	public static void registerServerReceivers() {

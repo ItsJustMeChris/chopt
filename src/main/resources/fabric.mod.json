@@ -20,6 +20,9 @@
 		],
 		"client": [
 			"mod.chopt.ChoptClient"
+		],
+		"jade": [
+			"mod.chopt.compat.jade.ChoptJadePlugin"
 		]
 	},
 	"mixins": [
@@ -34,5 +37,8 @@
 		"minecraft": "${minecraft_dependency}",
 		"java": ">=${java_version}",
 		"fabric-api": "*"
+	},
+	"suggests": {
+		"jade": "*"
 	}
 }

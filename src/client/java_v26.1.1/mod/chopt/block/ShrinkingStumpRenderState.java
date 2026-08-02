@@ -1,6 +1,7 @@
 package mod.chopt.block;
 
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.block.BlockModelRenderState;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
@@ -13,4 +14,6 @@ public class ShrinkingStumpRenderState extends BlockEntityRenderState {
 	float scale = 1.0f;
 	int light = 0;
 	@Nullable ClientLevel level;
+	/** Baked model of {@link #displayState}, resolved during extraction. */
+	final BlockModelRenderState blockModel = new BlockModelRenderState();
 }

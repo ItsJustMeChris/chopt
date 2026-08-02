@@ -10,12 +10,14 @@ Timber-style tree felling for Minecraft 1.21.11 on Fabric. Trees take a few chop
 - Fair durability: every swing costs durability; timbering only fells as many logs as your axe has durability for, leaving the rest if it breaks.
 - Shared effort: chop progress is tracked per tree, so multiple players can contribute swings to the same timber.
 - Client-agnostic: no client-side setup required; works server-side.
+- Jade integration (optional): hovering a shrinking stump shows the original log's name and icon plus a chop-progress bar, instead of the placeholder block.
 
 ## Requirements
-- Minecraft `1.21.11`
-- Fabric Loader `>=0.18.2`
-- Fabric API `0.139.5+1.21.11` (or newer for this MC version)
-- Java 21 (use Java 17 when building the 1.20.x branch)
+- Minecraft `1.20.1` / `1.21.8` / `1.21.10` / `1.21.11` / `26.1.1`
+- Fabric Loader `>=0.18.2` (`>=0.19.3` on 26.1.1)
+- Fabric API for your MC version
+- Java 21 (Java 17 for the 1.20.x profile, Java 25 for 26.1.1)
+- Optional: [Jade](https://modrinth.com/mod/jade) — not required, and not bundled
 
 ## Install (players)
 1. Install Fabric Loader for 1.21.11.
@@ -37,14 +39,22 @@ Outputs are under `build/libs/` (`-dev` jars are for development, the remapped j
 
 To switch Minecraft targets, use the built-in profiles:
 ```sh
+./gradlew useMc1201
+./gradlew useMc1218
+./gradlew useMc12110
 ./gradlew useMc12111
-./gradlew useMc261Snapshot1
+./gradlew useMc2611
 ```
-`26.1-snapshot-1` is deobfuscated (no mappings) and targets Java 25.
+Each profile pins its own Minecraft, Fabric, Loom and Jade versions, and switching
+profiles clears the previous one's toolchain settings, so they can be run in any order.
+`26.1.1` is deobfuscated (no mappings) and targets Java 25.
 
 ## Development notes
 - Uses official Mojang mappings; see `AGENTS.md` for cache and inspection tips.
 - Tree scanning lives in `src/main/java_v*/mod/chopt/TreeChopper.java`.
+- Jade compat lives in `src/main/java_v*/mod/chopt/compat/jade/` (entrypoint, loaded on
+  servers too) and `src/client/java_v*/mod/chopt/compat/jade/` (the tooltip itself).
+  Jade is a `compileOnly` dependency, so the mod runs fine without it.
 
 ## Known limits
 - Hard cap of 256 logs per tree scan.
