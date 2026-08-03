@@ -65,7 +65,7 @@ loom {
 
 }
 
-// Inject version-specific compat source roots (e.g., src/main/java_v1.21.10)
+// Inject version-specific compat source roots (e.g., src/main/java_v1.21.11)
 def mcCompatTag = "v${project.minecraft_version}"
 def mainCompatDir = file("src/main/java_${mcCompatTag}")
 def clientCompatDir = file("src/client/java_${mcCompatTag}")
@@ -104,6 +104,10 @@ sourceSets {
 	}
 }
 
+// Jade version for this profile, if any. Blank means the target has no Jade release yet,
+// in which case src/*/mod/*/compat/jade is left out of compilation.
+def jadeVersion = (project.findProperty("jade_version") ?: "").toString().trim()
+
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
@@ -121,8 +125,7 @@ dependencies {
 	}
 
 	// Jade is an optional integration: compile against it, never ship or require it.
-	// Profiles without a jade_version simply build without the compat classes wired up.
-	def jadeVersion = (project.findProperty("jade_version") ?: "").toString().trim()
+	// Profiles without a jade_version build with the compat sources excluded entirely.
 	if (!jadeVersion.isEmpty()) {
 		def jadeDep = "maven.modrinth:jade:${jadeVersion}"
 		// Deobfuscated targets (26.1+) skip Loom remapping entirely, matching the Fabric template.
@@ -136,6 +139,29 @@ dependencies {
 		}
 	}
 	
+}
+
+// Profiles with no Jade release compile without the compat classes, so the "jade"
+// entrypoint would otherwise point at a class that is not in the jar - which would
+// blow up if a Jade build for that MC version ever did appear.
+def stripJadeMetadata = { task ->
+	task.inputs.property("jadeVersion", jadeVersion)
+	if (!jadeVersion.isEmpty()) {
+		return
+	}
+	task.doLast {
+		def manifest = new File(task.destinationDir, "fabric.mod.json")
+		if (!manifest.exists()) {
+			return
+		}
+		def json = new groovy.json.JsonSlurper().parse(manifest)
+		json.entrypoints?.remove("jade")
+		json.suggests?.remove("jade")
+		if (json.suggests?.isEmpty()) {
+			json.remove("suggests")
+		}
+		manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json))
+	}
 }
 
 def expandResources = { task ->
@@ -173,9 +199,13 @@ def expandResources = { task ->
 
 tasks.named("processResources").configure(expandResources)
 tasks.named("processClientResources").configure(expandResources)
+tasks.named("processResources").configure(stripJadeMetadata)
 
 tasks.withType(JavaCompile).configureEach {
 	it.options.release = javaTarget
+	if (jadeVersion.isEmpty()) {
+		it.exclude("**/compat/jade/**")
+	}
 }
 
 java {
@@ -304,8 +334,32 @@ tasks.register("useMc1201") {
 	doLast { loadProfile("1.20.1") }
 }
 
+tasks.register("useMc261") {
+	group = "maintenance"
+	description = "Apply gradle/profiles/26.1.properties to gradle.properties"
+	doLast { loadProfile("26.1") }
+}
+
 tasks.register("useMc2611") {
 	group = "maintenance"
 	description = "Apply gradle/profiles/26.1.1.properties to gradle.properties"
 	doLast { loadProfile("26.1.1") }
+}
+
+tasks.register("useMc2612") {
+	group = "maintenance"
+	description = "Apply gradle/profiles/26.1.2.properties to gradle.properties"
+	doLast { loadProfile("26.1.2") }
+}
+
+tasks.register("useMc262") {
+	group = "maintenance"
+	description = "Apply gradle/profiles/26.2.properties to gradle.properties"
+	doLast { loadProfile("26.2") }
+}
+
+tasks.register("useMc263Snapshot6") {
+	group = "maintenance"
+	description = "Apply gradle/profiles/26.3-snapshot-6.properties to gradle.properties"
+	doLast { loadProfile("26.3-snapshot-6") }
 }
