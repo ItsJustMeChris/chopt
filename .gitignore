@@ -41,3 +41,7 @@ replay_*.log
 
 # Releases
 .builds/
+
+# env
+
+.env
