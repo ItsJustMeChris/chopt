@@ -64,3 +64,10 @@ The `26.x` profiles are deobfuscated (no mappings) and target Java 25.
 ## Known limits
 - Hard cap of 256 logs per tree scan.
 - No configuration file yet; behavior is fixed (shift-to-skip, leaf check, caps).
+
+
+## Thank you. 
+
+polaron-games https://github.com/polaron-games
+
+Sphvy https://github.com/Sphvy
