@@ -358,8 +358,8 @@ tasks.register("useMc262") {
 	doLast { loadProfile("26.2") }
 }
 
-tasks.register("useMc263Snapshot6") {
+tasks.register("useMc263Snapshot7") {
 	group = "maintenance"
-	description = "Apply gradle/profiles/26.3-snapshot-6.properties to gradle.properties"
-	doLast { loadProfile("26.3-snapshot-6") }
+	description = "Apply gradle/profiles/26.3-snapshot-7.properties to gradle.properties"
+	doLast { loadProfile("26.3-snapshot-7") }
 }
