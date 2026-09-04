@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import mod.chopt.block.ShrinkingStumpBlock;
 import mod.chopt.block.ShrinkingStumpBlockEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Registry;
 import net.minecraft.core.component.BlockTransformer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -17,7 +18,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.BlockTransformerMappings;
+import net.minecraft.world.item.component.BlockTransformers;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
@@ -150,7 +151,7 @@ public final class TreeChopper {
 		// Play chop sound for all nearby players (use stripped log sound to match visual)
 		BlockState originalForSound = session.anyOriginal();
 		if (originalForSound != null) {
-			BlockState strippedForSound = StripHelper.getStripped(originalForSound).orElse(originalForSound);
+			BlockState strippedForSound = StripHelper.getStripped(level, originalForSound).orElse(originalForSound);
 			SoundType soundType = strippedForSound.getSoundType();
 			level.playSound(null, pos, soundType.getHitSound(), SoundSource.BLOCKS,
 				(soundType.getVolume() + 1.0F) / 2.0F, soundType.getPitch() * 0.8F);
@@ -259,7 +260,7 @@ public final class TreeChopper {
 		if (resolved == null) return;
 
 		final BlockState original = resolved;
-		BlockState stripped = StripHelper.getStripped(original)
+		BlockState stripped = StripHelper.getStripped(level, original)
 			.map(state -> ShrinkingStumpBlockEntity.copyAxis(original, state))
 			.orElse(original);
 
@@ -282,37 +283,45 @@ public final class TreeChopper {
 
 	/**
 	 * MC 26.3 removed AxeItem and its protected STRIPPABLES map; stripping is now
-	 * data driven through the vanilla BlockTransformerMappings.AXE component. Rebuild
-	 * the old block -> stripped block table by replaying those rules once. The rules
-	 * only ever read {@link LevelAccessor#getBlockState(BlockPos)}, so a stand-in
-	 * level that reports a single candidate state is enough to evaluate them.
+	 * data driven through the vanilla axe {@link BlockTransformer}. Since snapshot 10
+	 * that transformer is a {@link Registries#BLOCK_TRANSFORMER} datapack registry entry
+	 * rather than a static field, so it is resolved through the level and the rebuilt
+	 * block -> stripped block table is cached per registry instance: a datapack that
+	 * edits the axe rules gets a fresh table when its world loads. The rules only ever
+	 * read {@link LevelAccessor#getBlockState(BlockPos)}, so a stand-in level that
+	 * reports a single candidate state is enough to evaluate them.
 	 */
 	private static final class StripHelper {
+		private static Registry<BlockTransformer> cachedRegistry;
 		private static Map<Block, Block> strippables;
 
 		private StripHelper() {}
 
-		static java.util.Optional<BlockState> getStripped(BlockState state) {
-			Block target = table().get(state.getBlock());
+		static java.util.Optional<BlockState> getStripped(Level level, BlockState state) {
+			Block target = table(level).get(state.getBlock());
 			if (target == null) return java.util.Optional.empty();
 			return java.util.Optional.of(target.withPropertiesOf(state));
 		}
 
-		private static synchronized Map<Block, Block> table() {
-			if (strippables == null) {
-				strippables = buildTable();
+		private static synchronized Map<Block, Block> table(Level level) {
+			Registry<BlockTransformer> registry = level.registryAccess().lookupOrThrow(Registries.BLOCK_TRANSFORMER);
+			if (strippables == null || cachedRegistry != registry) {
+				strippables = buildTable(registry);
+				cachedRegistry = registry;
 			}
 			return strippables;
 		}
 
-		private static Map<Block, Block> buildTable() {
+		private static Map<Block, Block> buildTable(Registry<BlockTransformer> registry) {
 			Map<Block, Block> table = new HashMap<>();
+			BlockTransformer axe = registry.getValue(BlockTransformers.AXE);
+			if (axe == null) return table;
 			ProbeLevel probe = new ProbeLevel();
 			LevelAccessor level = probe.asLevelAccessor();
 			RandomSource random = RandomSource.create();
 			for (Block block : BuiltInRegistries.BLOCK) {
 				probe.state = block.defaultBlockState();
-				for (BlockTransformer.BlockTransformData data : BlockTransformerMappings.AXE.transforms()) {
+				for (BlockTransformer.BlockTransformData data : axe.transforms()) {
 					if (!(data.blockStateProvider() instanceof RuleBasedStateProvider rules)) continue;
 					BlockState stripped;
 					try {
