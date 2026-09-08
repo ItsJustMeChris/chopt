@@ -16,9 +16,12 @@ def computeMinecraftDependency = { String mcVer ->
 		return "*"
 	}
 	String normalized = mcVer.replaceFirst(/_unobfuscated$/, "")
-	def snapshotMatcher = (normalized =~ /^(\d+)\.(\d+)-snapshot-(\d+)$/)
-	if (snapshotMatcher.matches()) {
-		normalized = "${snapshotMatcher[0][1]}.${snapshotMatcher[0][2]}-alpha.${snapshotMatcher[0][3]}"
+	// Match Fabric Loader's normalization of date-based pre-versions (McVersionLookup):
+	// 26.3-snapshot-10 -> 26.3-alpha.10, 26.3-pre-2 -> 26.3-pre.2, 26.3-rc-1 -> 26.3-rc.1
+	def preMatcher = (normalized =~ /^(\d+\.\d+(?:\.\d+)?)-(snapshot|pre|rc)-(\d+)$/)
+	if (preMatcher.matches()) {
+		def kind = preMatcher[0][2] == "snapshot" ? "alpha" : preMatcher[0][2]
+		normalized = "${preMatcher[0][1]}-${kind}.${preMatcher[0][3]}"
 	}
 	return "~${normalized}"
 }
@@ -358,8 +361,8 @@ tasks.register("useMc262") {
 	doLast { loadProfile("26.2") }
 }
 
-tasks.register("useMc263Snapshot10") {
+tasks.register("useMc263Pre2") {
 	group = "maintenance"
-	description = "Apply gradle/profiles/26.3-snapshot-10.properties to gradle.properties"
-	doLast { loadProfile("26.3-snapshot-10") }
+	description = "Apply gradle/profiles/26.3-pre-2.properties to gradle.properties"
+	doLast { loadProfile("26.3-pre-2") }
 }

@@ -322,7 +322,7 @@ public final class TreeChopper {
 			for (Block block : BuiltInRegistries.BLOCK) {
 				probe.state = block.defaultBlockState();
 				for (BlockTransformer.BlockTransformData data : axe.transforms()) {
-					if (!(data.blockStateProvider() instanceof RuleBasedStateProvider rules)) continue;
+					if (!(data.blockStateProvider().value() instanceof RuleBasedStateProvider rules)) continue;
 					BlockState stripped;
 					try {
 						stripped = rules.getOptionalState(level, random, BlockPos.ZERO);
