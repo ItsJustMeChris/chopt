@@ -17,7 +17,7 @@ public abstract class ClientLevelMixin {
 	}
 
 	@ModifyVariable(
-		method = "addBreakingBlockEffect",
+		method = "addBreakingBlockEffects",
 		at = @At(value = "STORE"),
 		ordinal = 0
 	)
