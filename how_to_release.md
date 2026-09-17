@@ -51,19 +51,19 @@ gradle deepClean
 gradle build
 copy output to .builds/
 
-gradle useMc263Pre3
+gradle useMc263
 gradle deepClean
 gradle build
 copy output to .builds/
 
 Notes:
 
-- 26.1, 26.1.1, 26.1.2, 26.2 and 26.3-pre-3 are unobfuscated (no mappings) and
+- 26.1, 26.1.1, 26.1.2, 26.2 and 26.3 are unobfuscated (no mappings) and
   need a Java 25 Gradle JVM; each profile pins one.
-- Jade is an optional compile-time dependency. Every profile pins a `jade_version`
-  except 26.3-pre-3, where Jade has published no build yet — that profile leaves
-  it unset, and `build.gradle` then excludes `**/compat/jade/**` from compilation.
-  When Jade ships for 26.3, just set `jade_version` in that profile.
+- Jade is an optional compile-time dependency and every profile now pins a
+  `jade_version`, including 26.3. If a future target ships before Jade does, leave
+  `jade_version` unset there and `build.gradle` excludes `**/compat/jade/**` from
+  compilation until Jade catches up.
 
 Troubleshooting:
 

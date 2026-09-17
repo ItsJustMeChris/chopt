@@ -361,8 +361,8 @@ tasks.register("useMc262") {
 	doLast { loadProfile("26.2") }
 }
 
-tasks.register("useMc263Pre3") {
+tasks.register("useMc263") {
 	group = "maintenance"
-	description = "Apply gradle/profiles/26.3-pre-3.properties to gradle.properties"
-	doLast { loadProfile("26.3-pre-3") }
+	description = "Apply gradle/profiles/26.3.properties to gradle.properties"
+	doLast { loadProfile("26.3") }
 }
